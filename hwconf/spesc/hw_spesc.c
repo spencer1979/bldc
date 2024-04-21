@@ -53,32 +53,31 @@ void hw_init_gpio(void)
 					  PAL_STM32_OSPEED_HIGHEST);
 
 	// External Buzzer (using servo pin!)
-	palSetPadMode(GPIOB, 6,
+
+	palSetPadMode(EXT_BUZZER_GPIO, EXT_BUZZER_PIN,
 				  PAL_MODE_OUTPUT_PUSHPULL |
 					  PAL_STM32_OSPEED_HIGHEST);
-	EXT_BUZZER_ON();
-	chThdSleepMilliseconds(200);
-	EXT_BUZZER_OFF();
-	chThdSleepMilliseconds(200);
-	EXT_BUZZER_ON();
-	chThdSleepMilliseconds(200);
-	EXT_BUZZER_OFF();
-	chThdSleepMilliseconds(200);
-	EXT_BUZZER_ON();
-	chThdSleepMilliseconds(200);
-	EXT_BUZZER_OFF();
-
+	
 	palSetPadMode(LIGHT_BACK_GPIO , LIGHT_BACK_PIN,
-				  PAL_MODE_OUTPUT_PUSHPULL |
-					  PAL_STM32_OSPEED_HIGHEST); // Rear light
-	palSetPadMode(LIGHT_FORNT_GPIO, LIGHT_FORNT_PIN,
-				  PAL_MODE_OUTPUT_PUSHPULL |
-					  PAL_STM32_OSPEED_HIGHEST); // front light
+				PAL_MODE_OUTPUT_PUSHPULL |
+				PAL_STM32_OSPEED_HIGHEST); // Rear light
+	palSetPadMode(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN,
+				PAL_MODE_OUTPUT_PUSHPULL |
+				PAL_STM32_OSPEED_HIGHEST); // front light
 	palSetPadMode(FAN_GPIO, FAN_PIN,
-				  PAL_MODE_OUTPUT_PUSHPULL |
-					  PAL_STM32_OSPEED_HIGHEST); // fan// power on DC-DC Converter pull high to enable , pull low disable
-	palSetPadMode(EXTERNAL_DCDC_GPIO, EXTERNAL_DCDC_PIN, 
-				  PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST); // external dc-dc board power on control 
+				PAL_MODE_OUTPUT_PUSHPULL |
+				PAL_STM32_OSPEED_HIGHEST); // fan
+
+	palSetPadMode(EXTERNAL_DCDC_GPIO, EXTERNAL_DCDC_PIN,
+				PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST );// external dc-dc board power on/off control 
+	// External board control default off 
+	EXT_DCDC_OFF();
+	//test buzzer 
+	EXT_BUZZER_ON();
+	chThdSleepMilliseconds(100);
+	EXT_BUZZER_OFF();
+	//Test Fan 
+	FAN_ON();
 	LIGHT_FRONT_ON();
 	LIGHT_BACK_ON();
 	chThdSleepMilliseconds(200);
@@ -90,10 +89,9 @@ void hw_init_gpio(void)
 	chThdSleepMilliseconds(200);
 	LIGHT_BACK_OFF();
 	LIGHT_FRONT_OFF();
-	// FAN on
+	// FAN control default off 
 	FAN_OFF();
-	// power on DC-DC Converter pull high to enable , pull low disable
-	palSetPadMode(GPIOD, 2, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+	
 	// GPIOA Configuration: Channel 1 to 3 as alternate function push-pull
 	palSetPadMode(GPIOA, 8, PAL_MODE_ALTERNATE(GPIO_AF_TIM1) | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_PUDR_FLOATING);
 	palSetPadMode(GPIOA, 9, PAL_MODE_ALTERNATE(GPIO_AF_TIM1) | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_PUDR_FLOATING);
@@ -276,6 +274,6 @@ static THD_FUNCTION(fan_control_thread, arg)
 			FAN_OFF();
 		}
 
-		chThdSleepMilliseconds(1000);
+		chThdSleepMilliseconds(2000);
 	}
 }

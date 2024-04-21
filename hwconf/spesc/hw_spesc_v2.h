@@ -16,34 +16,20 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     */
-#ifndef HW_SPESC
+#ifndef HW_SPESC_V2
 
-#define HW_SPESC
+#define HW_SPESC_V2
 
-// HW properties
-//#define HW_USE_LSM6DS3_IMU
-#ifdef HW_USE_LSM6DS3_IMU
-#define HW_NAME "SPEsc V3.1_LSM"
-#else
-#define HW_NAME "SPEsc V3.1_BMI"
-#endif
+#define HW_NAME "SPEsc V2"
+
 
 #define INVERTED_SHUNT_POLARITY
-#define HW_HAS_3_SHUNTS
 
+// HW properties
+#define HW_HAS_3_SHUNTS
 #define HW_USE_INTERNAL_RC
 #define HW_DEAD_TIME_NSEC 800.0
-#define HW_HAS_NO_CAN
 
-// SPEsc Hardware pin configuration
-#define LIGHT_FORNT_GPIO GPIOC
-#define LIGHT_FORNT_PIN 5
-#define LIGHT_BACK_GPIO GPIOB
-#define LIGHT_BACK_PIN 5
-#define FAN_GPIO GPIOC
-#define FAN_PIN 12
-#define EXTERNAL_DCDC_GPIO GPIOD
-#define EXTERNAL_DCDC_PIN 2
 // Macros
 #define LED_GREEN_ON() palSetPad(GPIOB, 0)
 #define LED_GREEN_OFF() palClearPad(GPIOB, 0)
@@ -51,19 +37,14 @@
 #define LED_RED_OFF() palClearPad(GPIOB, 1)
 // uses servo pin for buzzer
 #define HAS_EXT_BUZZER 1
+
 #define EXT_BUZZER_ON() palSetPad(GPIOB, 6)
 #define EXT_BUZZER_OFF() palClearPad(GPIOB, 6)
 // Enable J17 J16 COB LED
-#define LIGHT_FRONT_ON() palSetPad(LIGHT_FORNT_GPIO, LIGHT_FORNT_PIN)
-#define LIGHT_FRONT_OFF() palClearPad(LIGHT_FORNT_GPIO, LIGHT_FORNT_PIN)
-#define LIGHT_BACK_ON() palSetPad(LIGHT_BACK_GPIO, LIGHT_BACK_PIN) // V2 is PB7 , V3 is PC5
-#define LIGHT_BACK_OFF() palClearPad(LIGHT_BACK_GPIO, LIGHT_BACK_PIN)
-// 5V FAN control
-#define FAN_ON() palSetPad(FAN_GPIO, FAN_PIN)
-#define FAN_OFF() palClearPad(FAN_GPIO, FAN_PIN)
-// External dcdc control
-#define EXTERNAL_DCDC_ON() palSetPad(EXTERNAL_DCDC_GPIO, EXTERNAL_DCDC_PIN)
-#define EXTERNAL_DCDC_OFF() palClearPad(EXTERNAL_DCDC_GPIO, EXTERNAL_DCDC_PIN)
+#define LIGHT_FRONT_ON() palSetPad(GPIOB, 7)
+#define LIGHT_FRONT_OFF() palClearPad(GPIOB, 7)
+#define LIGHT_BACK_ON() palSetPad(GPIOB, 5)
+#define LIGHT_BACK_OFF() palClearPad(GPIOB, 5)
 
 /*
  * ADC Vector
@@ -110,11 +91,7 @@
 #define V_REG 3.3
 #endif
 #ifndef VIN_R1
-#ifdef HW_SPESC_REV_30
 #define VIN_R1 56000.0
-#else
-#define VIN_R1 68000.0 // V3.1 Changed from 56000 to 68000 after 2022-08-02
-#endif
 #endif
 #ifndef VIN_R2
 #define VIN_R2 2200.0
@@ -224,18 +201,10 @@
 #define HW_SPI_PIN_MISO 6
 
 // BMI160
-#ifndef HW_USE_LSM6DS3_IMU
 #define BMI160_SDA_GPIO GPIOB
 #define BMI160_SDA_PIN 2
 #define BMI160_SCL_GPIO GPIOA
 #define BMI160_SCL_PIN 15
-#else
-// LSM6DS3 need to set YAW -90 degress
-#define LSM6DS3_SDA_GPIO GPIOB
-#define LSM6DS3_SDA_PIN 2
-#define LSM6DS3_SCL_GPIO GPIOA
-#define LSM6DS3_SCL_PIN 15
-#endif
 //#define IMU_FLIP
 //#define IMU_ROT_270
 
@@ -270,14 +239,15 @@
 #define MCCONF_DEFAULT_MOTOR_TYPE MOTOR_TYPE_FOC
 #endif
 
+
 #ifndef MCCONF_L_MAX_ABS_CURRENT
-#define MCCONF_L_MAX_ABS_CURRENT 120.0 // The maximum absolute current above which a fault is generated
+#define MCCONF_L_MAX_ABS_CURRENT 110.0 // The maximum absolute current above which a fault is generated
 #endif
 #ifndef MCCONF_L_CURRENT_MAX
-#define MCCONF_L_CURRENT_MAX 100.0 // Current limit in Amperes (Upper)
+#define MCCONF_L_CURRENT_MAX 90.0 // Current limit in Amperes (Upper)
 #endif
 #ifndef MCCONF_L_CURRENT_MIN
-#define MCCONF_L_CURRENT_MIN -100.0 // Current limit in Amperes (Lower)
+#define MCCONF_L_CURRENT_MIN -90.0 // Current limit in Amperes (Lower)
 #endif
 
 #ifndef MCCONF_FOC_SAMPLE_V0_V7
@@ -294,7 +264,7 @@
 #define MCCONF_L_MIN_VOLTAGE 24.0 // Minimum input voltage
 #endif
 #ifndef MCCONF_L_MAX_VOLTAGE
-#define MCCONF_L_MAX_VOLTAGE 85.0 // Maximum input voltage
+#define MCCONF_L_MAX_VOLTAGE 80.0 // Maximum input voltage
 #endif
 #ifndef MCCONF_FOC_F_ZV
 #define MCCONF_FOC_F_ZV 20000.0
@@ -305,13 +275,18 @@
 
 // Setting limits
 
-#define HW_LIM_CURRENT -130.0, 130.0
+
+#define HW_LIM_CURRENT -100.0, 100.0
 #define HW_LIM_CURRENT_IN -80.0, 100.0
 #define HW_LIM_CURRENT_ABS 0.0, 140.0
-#define HW_LIM_VIN 24.0, 85.0 // use 100V cap for V3 , set 4.2*20S
+
+
+
+
+#define HW_LIM_VIN 24.0, 80.0
 #define HW_LIM_ERPM -300e3, 300e3
 #define HW_LIM_DUTY_MIN 0.0, 0.1
 #define HW_LIM_DUTY_MAX 0.0, 0.95
 #define HW_LIM_TEMP_FET -40.0, 120.0
 
-#endif /* HW_SPESC*/
+#endif /* HW_SPESC_V2 */
