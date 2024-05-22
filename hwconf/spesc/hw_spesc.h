@@ -173,7 +173,7 @@
 #ifndef V_REG
 #define V_REG 3.3
 #endif
-#define VIN_OFFSET 0.28
+#define VIN_OFFSET -0.28
 #ifndef VIN_R1
     #if (  HW_VERSION_MAJOR <=2)
         #define VIN_R1 56250.0
