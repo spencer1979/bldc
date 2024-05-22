@@ -63,7 +63,7 @@
 #define HW_HAS_3_SHUNTS
 #define HW_USE_INTERNAL_RC //We don't have an external crystal oscillator
 
-#define HW_DEAD_TIME_NSEC 1000.0
+#define HW_DEAD_TIME_NSEC 660.0
 
 
 // SPEsc Hardware pin configuration
@@ -173,6 +173,7 @@
 #ifndef V_REG
 #define V_REG 3.3
 #endif
+#define VIN_OFFSET 0.28
 #ifndef VIN_R1
     #if (  HW_VERSION_MAJOR <=2)
         #define VIN_R1 56250.0
@@ -197,7 +198,7 @@
     #endif
 #endif
 // Input voltage
-#define GET_INPUT_VOLTAGE() ((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2))
+#define GET_INPUT_VOLTAGE() (((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2) )+VIN_OFFSET)
 
 // NTC Termistors
 #define NTC_RES(adc_val) ((4095.0 * 10500.0) / adc_val - 10500.0)
@@ -355,7 +356,7 @@
 #define MCCONF_L_MIN_VOLTAGE 24.0 // Minimum input voltage
 #endif
 #ifndef MCCONF_L_MAX_VOLTAGE
-#define MCCONF_L_MAX_VOLTAGE 95 // Maximum input voltage
+#define MCCONF_L_MAX_VOLTAGE 100 // Maximum input voltage
 #endif
 #ifndef MCCONF_FOC_F_ZV
 #define MCCONF_FOC_F_ZV 20000.0
