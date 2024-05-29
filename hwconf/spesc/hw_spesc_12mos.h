@@ -27,7 +27,7 @@
 #define strname(name) str(name)
 
 //Gate driver using Low side signal inverted .. like FD2203 ..
-#define HW_GD_LOW_INVERTED
+//#define HW_GD_LOW_INVERTED
 
 #ifdef HW_GD_LOW_INVERTED
 // Gate driver Low-side signal inverted
@@ -35,7 +35,6 @@
 #define HW_NAME "SPEsc_12Mos_INV_V" strname(HW_VERSION_MAJOR) "." strname(HW_VERSION_MINOR)
 #else
 // Gate driver normal
-#define INVERTED_BOTTOM_DRIVER_INPUT
 #define HW_NAME "SPEsc_12Mos_V" strname(HW_VERSION_MAJOR) "." strname(HW_VERSION_MINOR)
 #endif
 
@@ -43,7 +42,7 @@
 #define HW_HAS_3_SHUNTS
 #define HW_USE_INTERNAL_RC //We don't have an external crystal oscillator
 
-#define HW_DEAD_TIME_NSEC 460.0
+#define HW_DEAD_TIME_NSEC 660.0
 
 
 // SPEsc Hardware pin configuration
