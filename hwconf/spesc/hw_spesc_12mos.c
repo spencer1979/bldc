@@ -76,6 +76,10 @@ void hw_init_gpio(void)
 	EXT_BUZZER_ON();
 	chThdSleepMilliseconds(100);
 	EXT_BUZZER_OFF();
+	chThdSleepMilliseconds(100);
+	EXT_BUZZER_ON();
+	chThdSleepMilliseconds(100);
+	EXT_BUZZER_OFF();
 	//Test Fan 
 	FAN_ON();
 	LIGHT_FRONT_ON();
