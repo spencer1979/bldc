@@ -158,13 +158,13 @@
 // Double samples in beginning and end for positive current measurement.
 // Useful when the shunt sense traces have noise that causes offset.
 #ifndef CURR1_DOUBLE_SAMPLE
-#define CURR1_DOUBLE_SAMPLE 1
+#define CURR1_DOUBLE_SAMPLE 0
 #endif
 #ifndef CURR2_DOUBLE_SAMPLE
-#define CURR2_DOUBLE_SAMPLE 1
+#define CURR2_DOUBLE_SAMPLE 0
 #endif
 #ifndef CURR3_DOUBLE_SAMPLE
-#define CURR3_DOUBLE_SAMPLE 1
+#define CURR3_DOUBLE_SAMPLE 0
 #endif
 
 // COMM-port ADC GPIOs
