@@ -16,12 +16,12 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     */
-#ifndef HW_SPESC_12MOS_H
+#ifndef HW_SPESC_MK2_H
 
-#define HW_SPESC_12MOS_H
+#define HW_SPESC_MK2_H
 // SPEsc Hardware Vesion 
-#define HW_VERSION_MAJOR  4
-#define HW_VERSION_MINOR  0 // V4 is 12MOS , V3 is 6MOS
+#define HW_VERSION_MAJOR  1
+#define HW_VERSION_MINOR  0 
 
 #define str(x) #x
 #define strname(name) str(name)
@@ -29,14 +29,9 @@
 //Gate driver using Low side signal inverted .. like FD2203 ..
 //#define HW_GD_LOW_INVERTED
 
-#ifdef HW_GD_LOW_INVERTED
-// Gate driver Low-side signal inverted
-#define INVERTED_BOTTOM_DRIVER_INPUT
-#define HW_NAME "SPEsc_12Mos_INV_V" strname(HW_VERSION_MAJOR) "." strname(HW_VERSION_MINOR)
-#else
 // Gate driver normal
-#define HW_NAME "SPEsc_12Mos_V" strname(HW_VERSION_MAJOR) "." strname(HW_VERSION_MINOR)
-#endif
+#define HW_NAME "SPEsc_MK2" strname(HW_VERSION_MAJOR) "." strname(HW_VERSION_MINOR)
+
 
 #define INVERTED_SHUNT_POLARITY
 #define HW_HAS_3_SHUNTS
@@ -45,17 +40,17 @@
 #define HW_DEAD_TIME_NSEC 660.0
 
 
-// SPEsc Hardware pin configuration
+// SPEsc MK2 Hardware pin configuration
 #define LIGHT_FRONT_GPIO GPIOC
 #define LIGHT_FRONT_PIN 5
 
 #define LIGHT_BACK_GPIO GPIOB
 #define LIGHT_BACK_PIN 5
 
-#define FAN_GPIO GPIOC
-#define FAN_PIN 12
-#define EXTERNAL_DCDC_GPIO GPIOD
-#define EXTERNAL_DCDC_PIN 2
+#define FAN_GPIO GPIOD
+#define FAN_PIN 2
+#define EXTERNAL_DCDC_GPIO GPIOC
+#define EXTERNAL_DCDC_PIN 12
 // Macros
 #define LED_GREEN_ON() palSetPad(GPIOB, 0)
 #define LED_GREEN_OFF() palClearPad(GPIOB, 0)
@@ -63,14 +58,14 @@
 #define LED_RED_OFF() palClearPad(GPIOB, 1)
 
 #define HAS_EXT_BUZZER 1
-#define EXT_BUZZER_GPIO GPIOC
-#define EXT_BUZZER_PIN 13
+#define EXT_BUZZER_GPIO GPIOB
+#define EXT_BUZZER_PIN 12
 #define EXT_BUZZER_ON() palSetPad(EXT_BUZZER_GPIO, EXT_BUZZER_PIN) // uses can_tx
 #define EXT_BUZZER_OFF() palClearPad(EXT_BUZZER_GPIO, EXT_BUZZER_PIN)
 // Enable J17 J16 COB LED
 #define LIGHT_FRONT_ON() palSetPad(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN)
 #define LIGHT_FRONT_OFF() palClearPad(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN)
-#define LIGHT_BACK_ON() palSetPad(LIGHT_BACK_GPIO, LIGHT_BACK_PIN) // V2 is PB7 , V3 is PC5
+#define LIGHT_BACK_ON() palSetPad(LIGHT_BACK_GPIO, LIGHT_BACK_PIN) 
 #define LIGHT_BACK_OFF() palClearPad(LIGHT_BACK_GPIO, LIGHT_BACK_PIN)
 // 5V FAN control
 #define FAN_ON() palSetPad(FAN_GPIO, FAN_PIN)
@@ -125,7 +120,7 @@
 #define V_REG 3.3
 #endif
 
-#define VIN_OFFSET -0.28
+#define VIN_OFFSET 0
 
 #ifndef VIN_R1
 #define VIN_R1 68000.0 
@@ -140,7 +135,7 @@
 #endif
 
 #ifndef CURRENT_SHUNT_RES
-#define CURRENT_SHUNT_RES 0.00025 // 0.0005 ohms in parallel , Max current +/-(1.6V/0.25m ohm) /20= 320 A Max  , we use 300A 
+#define CURRENT_SHUNT_RES 0.0003 //  Max current +/-(1.6V/0.3m ohm) /20= 266 A Max  , we use 265A 
 #endif
 // Input voltage
 #define GET_INPUT_VOLTAGE() (((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2) )+VIN_OFFSET)
@@ -291,16 +286,16 @@
 #define MCCONF_FOC_DT_US 0.1 // Microseconds for dead time compensation
 #endif
 #ifndef MCCONF_L_MAX_ABS_CURRENT
-#define MCCONF_L_MAX_ABS_CURRENT 300.0 // The maximum absolute current above which a fault is generated
+#define MCCONF_L_MAX_ABS_CURRENT 265.0 // The maximum absolute current above which a fault is generated
 #endif
 #ifndef MCCONF_L_CURRENT_MAX
-#define MCCONF_L_CURRENT_MAX 200 // Current limit in Amperes (Upper)
+#define MCCONF_L_CURRENT_MAX 150.0 // Current limit in Amperes (Upper)
 #endif
 #ifndef MCCONF_L_CURRENT_MIN
-#define MCCONF_L_CURRENT_MIN -200.0 // Current limit in Amperes (Lower)
+#define MCCONF_L_CURRENT_MIN -150.0 // Current limit in Amperes (Lower)
 #endif
-#define HW_LIM_CURRENT -320.0, 320.0
-#define HW_LIM_CURRENT_ABS 0.0, 320.0
+#define HW_LIM_CURRENT -265, 265
+#define HW_LIM_CURRENT_ABS 0.0, 265.0
 #define HW_LIM_CURRENT_IN -100.0, 100.0
 #define HW_LIM_VIN 24.0, 100 // use 100V cap for V3 , set 4.2*20S
 #define HW_LIM_ERPM -300e3, 300e3
@@ -308,4 +303,4 @@
 #define HW_LIM_DUTY_MAX 0.0, 0.98
 #define HW_LIM_TEMP_FET -40.0, 120.0
 
-#endif /* HW_SPESC*/
+#endif /* HW_SPESC_MK2*/
