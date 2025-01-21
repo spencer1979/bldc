@@ -21,7 +21,7 @@
 #define HW_SPESC_MK4_H
 // SPEsc Hardware Vesion 
 #define HW_VERSION_MAJOR  4
-#define HW_VERSION_MINOR  4
+#define HW_VERSION_MINOR  2
 
 #define str(x) #x
 #define strname(name) str(name)
@@ -58,10 +58,8 @@
 #define LED_RED_OFF() palClearPad(GPIOB, 1)
 
 #define HAS_EXT_BUZZER 1
-#define EXT_BUZZER_GPIO GPIOB
-#define EXT_BUZZER_PIN 12
-#define EXT_BUZZER_ON() palSetPad(EXT_BUZZER_GPIO, EXT_BUZZER_PIN) // uses can_tx
-#define EXT_BUZZER_OFF() palClearPad(EXT_BUZZER_GPIO, EXT_BUZZER_PIN)
+#define EXT_BUZZER_ON() palSetPad(HW_ICU_GPIO, HW_ICU_PIN) // SErvo pin 
+#define EXT_BUZZER_OFF() palClearPad(HW_ICU_GPIO, HW_ICU_PIN)
 // Enable J17 J16 COB LED
 #define LIGHT_FRONT_ON() palSetPad(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN)
 #define LIGHT_FRONT_OFF() palClearPad(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN)
@@ -135,7 +133,7 @@
 #endif
 
 #ifndef CURRENT_SHUNT_RES
-#define CURRENT_SHUNT_RES 0.0003 //  Max current +/-(1.6V/0.3m ohm) /20= 266 A Max  , we use 265A 
+#define CURRENT_SHUNT_RES 0.00025 //  Max current +/-(1.6V/0.3m ohm) /20= 266 A Max  , we use 265A 
 #endif
 // Input voltage
 #define GET_INPUT_VOLTAGE() (((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2) )+VIN_OFFSET)
@@ -153,13 +151,13 @@
 // Double samples in beginning and end for positive current measurement.
 // Useful when the shunt sense traces have noise that causes offset.
 #ifndef CURR1_DOUBLE_SAMPLE
-#define CURR1_DOUBLE_SAMPLE 1
+#define CURR1_DOUBLE_SAMPLE 0
 #endif
 #ifndef CURR2_DOUBLE_SAMPLE
-#define CURR2_DOUBLE_SAMPLE 1
+#define CURR2_DOUBLE_SAMPLE 0
 #endif
 #ifndef CURR3_DOUBLE_SAMPLE
-#define CURR3_DOUBLE_SAMPLE 1
+#define CURR3_DOUBLE_SAMPLE 0
 #endif
 
 // COMM-port ADC GPIOs
