@@ -37,7 +37,7 @@
 #define HW_HAS_3_SHUNTS
 #define HW_USE_INTERNAL_RC //We don't have an external crystal oscillator
 
-#define HW_DEAD_TIME_NSEC 660.0
+#define HW_DEAD_TIME_NSEC 1000.0
 
 
 // SPEsc MK4 Hardware pin configuration
@@ -133,7 +133,7 @@
 #endif
 
 #ifndef CURRENT_SHUNT_RES
-#define CURRENT_SHUNT_RES 0.00025 //  Max current +/-(1.6V/0.3m ohm) /20= 266 A Max  , we use 265A 
+#define CURRENT_SHUNT_RES 0.0003 //  Max current +/-(1.6V/0.3m ohm) /20= 266 A Max  , we use 265A 
 #endif
 // Input voltage
 #define GET_INPUT_VOLTAGE() (((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2) )+VIN_OFFSET)
