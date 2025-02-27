@@ -241,9 +241,9 @@
 
 // NRF SWD
 #define NRF5x_SWDIO_GPIO GPIOB
-#define NRF5x_SWDIO_PIN 4
+#define NRF5x_SWDIO_PIN 3
 #define NRF5x_SWCLK_GPIO GPIOB
-#define NRF5x_SWCLK_PIN 3
+#define NRF5x_SWCLK_PIN 4
 
 // Measurement macros
 #define ADC_V_L1 ADC_Value[ADC_IND_SENS1]
