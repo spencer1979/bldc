@@ -27,7 +27,10 @@
 // Variables
 static volatile bool i2c_running = false;
 // fan control thread
-static THD_WORKING_AREA(fan_control_thread_wa, 128);
+// 可以調成 64，但這會讓 fan_control_thread 的 stack 只有 64 bytes，對於大多數簡單 thread 可能夠用，但如果 thread 內部有呼叫較多函式或用到較多區域變數，可能會有 stack overflow 風險。
+// 建議測試後觀察是否有異常（如 thread 異常終止），若有問題再調回 128。
+
+static THD_WORKING_AREA(fan_control_thread_wa, 96); // 96 bytes stack size, adjust as needed
 static THD_FUNCTION(fan_control_thread, arg);
 
 // I2C configuration
@@ -124,6 +127,8 @@ void hw_init_gpio(void)
 	palSetPadMode(GPIOC, 2, PAL_MODE_INPUT_ANALOG);
 	palSetPadMode(GPIOC, 3, PAL_MODE_INPUT_ANALOG);
 	palSetPadMode(GPIOC, 4, PAL_MODE_INPUT_ANALOG);
+
+	
 }
 
 void hw_setup_adc_channels(void)
@@ -262,15 +267,78 @@ void hw_try_restore_i2c(void)
 		i2cReleaseBus(&HW_I2C_DEV);
 	}
 }
+
+#ifdef HW_HAS_4_WIRE_FAN
+// 1. 初始化 PWM 腳位（建議在 hw_init_gpio() 裡呼叫一次）
+static void fan_pwm_init(void) {
+    // 開啟 TIM2 時鐘
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+
+    // 設定 PB3 為 TIM2_CH2 alternate function
+    palSetPadMode(GPIOB, 3, PAL_MODE_ALTERNATE(GPIO_AF_TIM2) | PAL_STM32_OSPEED_HIGHEST);
+
+    // 設定 TIM2 為 PWM 輸出
+    TIM_TimeBaseInitTypeDef tim_init;
+    TIM_OCInitTypeDef oc_init;
+
+    tim_init.TIM_Period = 999;      // PWM 週期 (1kHz)
+    tim_init.TIM_Prescaler = 83;    // 84MHz/84=1MHz, 1MHz/1000=1kHz
+    tim_init.TIM_ClockDivision = 0;
+    tim_init.TIM_CounterMode = TIM_CounterMode_Up;
+    TIM_TimeBaseInit(TIM2, &tim_init);
+
+    oc_init.TIM_OCMode = TIM_OCMode_PWM1;
+    oc_init.TIM_OutputState = TIM_OutputState_Enable;
+    oc_init.TIM_Pulse = 0; // 預設 0% 占空比
+    oc_init.TIM_OCPolarity = TIM_OCPolarity_High;
+    TIM_OC2Init(TIM2, &oc_init);
+    TIM_OC2PreloadConfig(TIM2, TIM_OCPreload_Enable);
+
+    TIM_ARRPreloadConfig(TIM2, ENABLE);
+    TIM_Cmd(TIM2, ENABLE);
+}
+
+void set_fan_pwm(float duty) {
+    if (duty < 0.0f) duty = 0.0f;
+    if (duty > 1.0f) duty = 1.0f;
+    TIM2->CCR2 = (uint16_t)(duty * 999.0f); // 999 = Period
+}
+
+#endif
+
 static THD_FUNCTION(fan_control_thread, arg)
 {
 	(void)arg;
+
 	chRegSetThreadName("fan_control_thread");
+
+#ifdef HW_HAS_4_WIRE_FAN
+	// PWM initialization for fan control
+	fan_pwm_init();
+#endif
+
 	float temp_t;
 	for (;;)
 	{
 		temp_t = mc_interface_temp_fet_filtered();
-		if ( temp_t > mc_interface_get_configuration()->bms.t_limit_start )
+#ifdef HW_HAS_4_WIRE_FAN
+		// 依溫度線性調整風扇轉速
+		const float t_start = mc_interface_get_configuration()->bms.t_limit_start;
+		const float t_end = mc_interface_get_configuration()->bms.t_limit_end;
+		float duty = 0.0f;
+		if (temp_t > t_start) {
+			duty = (temp_t - t_start) / (t_end - t_start);
+			if (duty > 1.0f) duty = 1.0f;
+			if (duty < 0.2f) duty = 0.2f; // 最低轉速
+		}
+		set_fan_pwm(duty);
+		if (duty > 0.0f) {
+			FAN_ON();
+		} else {
+			FAN_OFF();
+		}
+#else
+		if (temp_t > mc_interface_get_configuration()->bms.t_limit_start)
 		{
 			FAN_ON();
 		}
@@ -278,7 +346,7 @@ static THD_FUNCTION(fan_control_thread, arg)
 		{
 			FAN_OFF();
 		}
-
+#endif
 		chThdSleepMilliseconds(2000);
 	}
 }
