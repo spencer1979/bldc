@@ -36,7 +36,7 @@
 #define INVERTED_SHUNT_POLARITY
 #define HW_HAS_3_SHUNTS
 #define HW_USE_INTERNAL_RC //We don't have an external crystal oscillator
-#define HW_HAS_4_WIRE_FAN // 4-wire fan support
+
 #define HW_DEAD_TIME_NSEC 1000.0
 
 
@@ -49,15 +49,6 @@
 
 #define FAN_GPIO GPIOD
 #define FAN_PIN 2
-
-
-// 判斷是否使用四線風扇
-#ifdef HW_HAS_4_WIRE_FAN
-#define FAN_PWM_GPIO GPIOB
-#define FAN_PWM_PIN 3
-#define FAN_PWM_AF GPIO_AF_TIM2
-#endif
-
 #define EXTERNAL_DCDC_GPIO GPIOC
 #define EXTERNAL_DCDC_PIN 12
 // Macros
@@ -75,9 +66,8 @@
 #define LIGHT_BACK_ON() palSetPad(LIGHT_BACK_GPIO, LIGHT_BACK_PIN) 
 #define LIGHT_BACK_OFF() palClearPad(LIGHT_BACK_GPIO, LIGHT_BACK_PIN)
 // 5V FAN control
-#define FAN_ON()  palSetPad(FAN_GPIO, FAN_PIN)
+#define FAN_ON() palSetPad(FAN_GPIO, FAN_PIN)
 #define FAN_OFF() palClearPad(FAN_GPIO, FAN_PIN)
-
 // External dcdc control
 #define EXT_DCDC_ON() palSetPad(EXTERNAL_DCDC_GPIO, EXTERNAL_DCDC_PIN)
 #define EXT_DCDC_OFF() palClearPad(EXTERNAL_DCDC_GPIO, EXTERNAL_DCDC_PIN)
@@ -149,8 +139,8 @@
 #define GET_INPUT_VOLTAGE() (((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2) )+VIN_OFFSET)
 
 // NTC Thermistors
-// Correction: Added a correction offset to compensate for the difference between the actual temperature and the ADC reading
-#define NTC_TEMP_OFFSET 2.0f // Adjusted according to the actual temperature difference, positive value indicates that the adc temperature is low
+// 修正: 增加一個校正偏移量來補償實際溫度與ADC讀值的差異
+#define NTC_TEMP_OFFSET 2.0f // 根據實測溫差調整，正值表示ADC溫度偏低
 
 #define NTC_RES(adc_val) ((4095.0 * 10500.0) / adc_val - 10500.0)
 #define NTC_TEMP(adc_ind) ((1.0f / ((logf(NTC_RES(ADC_Value[adc_ind]) / 10000.0f) / 3380.0f) + (1.0f / 298.15f)) - 273.15f) + NTC_TEMP_OFFSET)
@@ -252,11 +242,11 @@
 #define HW_UART_P_RX_PORT GPIOC
 #define HW_UART_P_RX_PIN 11
 
-// NRF SWD nrf52832 version rev 3 will lock the SWD port so it is not used.
-// #define NRF5x_SWDIO_GPIO GPIOB
-// #define NRF5x_SWDIO_PIN 3
-// #define NRF5x_SWCLK_GPIO GPIOB
-// #define NRF5x_SWCLK_PIN 4
+// NRF SWD
+#define NRF5x_SWDIO_GPIO GPIOB
+#define NRF5x_SWDIO_PIN 3
+#define NRF5x_SWCLK_GPIO GPIOB
+#define NRF5x_SWCLK_PIN 4
 
 // Measurement macros
 #define ADC_V_L1 ADC_Value[ADC_IND_SENS1]
