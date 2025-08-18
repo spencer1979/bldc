@@ -24,11 +24,16 @@
 #include "commands.h"
 #include "mc_interface.h"
 #include "ledpwm.h"
+#include "mcpwm_foc.h"
 // Variables
 static volatile bool i2c_running = false;
 // fan control thread
 static THD_WORKING_AREA(fan_control_thread_wa, 128);
 static THD_FUNCTION(fan_control_thread, arg);
+
+// startup sound thread
+static THD_WORKING_AREA(startup_sound_thread_wa, 256);
+static THD_FUNCTION(startup_sound_thread, arg);
 
 // I2C configuration
 static const I2CConfig i2cfg = {
@@ -161,6 +166,8 @@ void hw_setup_adc_channels(void)
 	ADC_InjectedChannelConfig(ADC3, ADC_Channel_12, 3, ADC_SampleTime_15Cycles);
 	// fan control thread
 	chThdCreateStatic(fan_control_thread_wa, sizeof(fan_control_thread_wa), LOWPRIO, fan_control_thread, NULL);
+	// startup sound thread (higher priority than fan control)
+	chThdCreateStatic(startup_sound_thread_wa, sizeof(startup_sound_thread_wa), LOWPRIO + 1, startup_sound_thread, NULL);
 }
 
 void hw_start_i2c(void)
@@ -281,4 +288,33 @@ static THD_FUNCTION(fan_control_thread, arg)
 
 		chThdSleepMilliseconds(2000);
 	}
+}
+
+static THD_FUNCTION(startup_sound_thread, arg)
+{
+	(void)arg;
+	chRegSetThreadName("startup_sound_thread");
+	
+	// Wait for system to initialize
+	chThdSleepMilliseconds(3000);
+	// Phase 5: High-pitch ready signal (like DJI ready beep)
+	mcpwm_foc_play_tone(0, 659.25, 3.5); // E5 - bright and clear
+	mcpwm_foc_play_tone(1, 783.99, 3.0); // G5 - harmonic
+	mcpwm_foc_play_tone(2, 1046.5, 2.5); // C6 - very high
+	chThdSleepMilliseconds(600);
+		// Phase 5: High-pitch ready signal (like DJI ready beep)
+	mcpwm_foc_play_tone(0, 659.25, 3.5); // E5 - bright and clear
+	mcpwm_foc_play_tone(1, 783.99, 3.0); // G5 - harmonic
+	mcpwm_foc_play_tone(2, 1046.5, 2.5); // C6 - very high
+	chThdSleepMilliseconds(600);
+		// Phase 5: High-pitch ready signal (like DJI ready beep)
+	mcpwm_foc_play_tone(0, 659.25, 3.5); // E5 - bright and clear
+	mcpwm_foc_play_tone(1, 783.99, 3.0); // G5 - harmonic
+	mcpwm_foc_play_tone(2, 1046.5, 2.5); // C6 - very high
+	chThdSleepMilliseconds(600);
+	// Stop all tones gracefully
+	mcpwm_foc_stop_audio(true);
+	
+	// Thread exits after playing startup sound
+	chThdExit(MSG_OK);
 }
