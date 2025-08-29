@@ -118,7 +118,7 @@
 #define V_REG 3.3
 #endif
 
-#define VIN_OFFSET 0
+#define VIN_OFFSET -0.33
 
 #ifndef VIN_R1
 #define VIN_R1 68000.0 

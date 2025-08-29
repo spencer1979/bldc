@@ -1,5 +1,7 @@
 /*
-	Copyright 2012-2016 Benjamin Vedder	benjamin@vedder.se
+	Copyright 2012-2016 Benjamin// startup tone thread
+static THD_WORKING_AREA(startup_tone_thread_wa, 112);
+static THD_FUNCTION(startup_tone_thread, arg);dder	benjamin@vedder.se
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,11 +26,13 @@
 #include "commands.h"
 #include "mc_interface.h"
 #include "ledpwm.h"
+#include "mcpwm_foc.h"
 // Variables
 static volatile bool i2c_running = false;
 // fan control thread
 static THD_WORKING_AREA(fan_control_thread_wa, 128);
 static THD_FUNCTION(fan_control_thread, arg);
+
 
 // I2C configuration
 static const I2CConfig i2cfg = {
@@ -267,17 +271,25 @@ static THD_FUNCTION(fan_control_thread, arg)
 	(void)arg;
 	chRegSetThreadName("fan_control_thread");
 	float temp_t;
+	int fan_state = 0;  // 記錄風扇狀態 (0=關閉, 1=開啟)
+	const float TEMP_HYSTERESIS = 2.0f;  // 2°C 遲滯
+	
 	for (;;)
 	{
 		temp_t = mc_interface_temp_fet_filtered();
-		if ( temp_t > mc_interface_get_configuration()->bms.t_limit_start )
-		{
+		float temp_limit = mc_interface_get_configuration()->bms.t_limit_start;
+		
+		if (!fan_state && temp_t > temp_limit) {
+			// 風扇關閉狀態，溫度超過閾值 -> 開啟風扇
 			FAN_ON();
+			fan_state = 1;
 		}
-		else
-		{
+		else if (fan_state && temp_t < (temp_limit - TEMP_HYSTERESIS)) {
+			// 風扇開啟狀態，溫度低於 (閾值 - 2°C) -> 關閉風扇
 			FAN_OFF();
+			fan_state = 0;
 		}
+		// 在遲滯區間內保持原狀態不變
 
 		chThdSleepMilliseconds(2000);
 	}
