@@ -31,9 +31,10 @@ static volatile bool i2c_running = false;
 static THD_WORKING_AREA(fan_control_thread_wa, 128);
 static THD_FUNCTION(fan_control_thread, arg);
 
-// startup sound thread
-static THD_WORKING_AREA(startup_sound_thread_wa, 256);
-static THD_FUNCTION(startup_sound_thread, arg);
+// startup tone thread
+static THD_WORKING_AREA(startup_tone_thread_wa, 96);
+static THD_FUNCTION(startup_tone_thread, arg);
+static void play_tone_decay(int channel, float freq, float time_s, float vol_start);
 
 // I2C configuration
 static const I2CConfig i2cfg = {
@@ -166,8 +167,9 @@ void hw_setup_adc_channels(void)
 	ADC_InjectedChannelConfig(ADC3, ADC_Channel_12, 3, ADC_SampleTime_15Cycles);
 	// fan control thread
 	chThdCreateStatic(fan_control_thread_wa, sizeof(fan_control_thread_wa), LOWPRIO, fan_control_thread, NULL);
-	// startup sound thread (higher priority than fan control)
-	chThdCreateStatic(startup_sound_thread_wa, sizeof(startup_sound_thread_wa), LOWPRIO + 1, startup_sound_thread, NULL);
+
+	// startup tone thread
+	chThdCreateStatic(startup_tone_thread_wa, sizeof(startup_tone_thread_wa), LOWPRIO, startup_tone_thread, NULL);
 }
 
 void hw_start_i2c(void)
@@ -290,31 +292,66 @@ static THD_FUNCTION(fan_control_thread, arg)
 	}
 }
 
-static THD_FUNCTION(startup_sound_thread, arg)
+static void play_tone_decay(int channel, float freq, float time_s, float vol_start)
+{
+	// 分為 30 個步驟做指數衰減
+	const int steps = 30;
+	float vol = vol_start;
+	int ms_per_step = (int)(time_s * 1000.0f / (float)steps);
+	if (ms_per_step < 1) {
+		ms_per_step = 1;
+	}
+	for (int i = 0; i < steps; i++) {
+		vol *= 0.93f;
+		mcpwm_foc_play_tone(channel, freq, vol);
+		chThdSleepMilliseconds(ms_per_step);
+	}
+}
+
+static THD_FUNCTION(startup_tone_thread, arg)
 {
 	(void)arg;
-	chRegSetThreadName("startup_sound_thread");
+	chRegSetThreadName("startup_tone_thread");
 	
-	// Wait for system to initialize
+	// 等待系統初始化
 	chThdSleepMilliseconds(3000);
-	// Phase 5: High-pitch ready signal (like DJI ready beep)
-	mcpwm_foc_play_tone(0, 659.25, 3.5); // E5 - bright and clear
-	mcpwm_foc_play_tone(1, 783.99, 3.0); // G5 - harmonic
-	mcpwm_foc_play_tone(2, 1046.5, 2.5); // C6 - very high
-	chThdSleepMilliseconds(600);
-		// Phase 5: High-pitch ready signal (like DJI ready beep)
-	mcpwm_foc_play_tone(0, 659.25, 3.5); // E5 - bright and clear
-	mcpwm_foc_play_tone(1, 783.99, 3.0); // G5 - harmonic
-	mcpwm_foc_play_tone(2, 1046.5, 2.5); // C6 - very high
-	chThdSleepMilliseconds(600);
-		// Phase 5: High-pitch ready signal (like DJI ready beep)
-	mcpwm_foc_play_tone(0, 659.25, 3.5); // E5 - bright and clear
-	mcpwm_foc_play_tone(1, 783.99, 3.0); // G5 - harmonic
-	mcpwm_foc_play_tone(2, 1046.5, 2.5); // C6 - very high
-	chThdSleepMilliseconds(600);
-	// Stop all tones gracefully
-	mcpwm_foc_stop_audio(true);
+
+	// 定義音符（時長，頻率Hz）- 簡短 2 秒啟動音效
+	typedef struct {
+		float dur;
+		float freq;
+	} note_t;
+
+	// DJI Mavic Air 2 真實啟動音效 - 從 MIDI 檔案分析
+	static const note_t melody[] = {
+		// 多重音符同時播放，取主要音符
+		{0.36f, 1046.502f}, // C6 (0.000s, 0.360s) - 主導音
+		{0.256f, 523.251f}, // C5 (0.012s, 0.256s) - 同時播放
+		{0.07f, 415.305f},  // G#5 (0.233s, 0.070s) - 短音
+		{0.244f, 1479.978f}, // F#7 (0.244s, 0.244s) - 高音
+		{0.279f, 587.330f}, // D5 (0.244s, 0.279s)
+		{0.407f, 783.991f}, // G5 (0.430s, 0.407s) - 較強音 (力度81)
+	};
+
+	const int notes = (int)(sizeof(melody) / sizeof(melody[0]));
+
+	// 播放旋律 - 增大音量
+	for (int i = 0; i < notes; i++) {
+		float dur = melody[i].dur;
+		float freq = melody[i].freq;
+		// 若 freq 小於 1Hz 視為休止符
+		if (freq < 1.0f) {
+			chThdSleepMilliseconds((int)(dur * 1000.0f));
+		} else {
+			play_tone_decay(0, freq, dur, 3.5f); // 頻道0，起始音量 3.5 (更大聲)
+		}
+		// 音符間短暫間隔 - DJI 原版幾乎無間隔
+		chThdSleepMilliseconds(10);
+	}
+
+	// 停止所有音效
+	mcpwm_foc_stop_audio(1);
 	
-	// Thread exits after playing startup sound
+	// 結束執行緒
 	chThdExit(MSG_OK);
 }
