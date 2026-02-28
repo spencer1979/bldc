@@ -37,7 +37,7 @@
 #define HW_HAS_3_SHUNTS
 #define HW_USE_INTERNAL_RC //We don't have an external crystal oscillator
 
-#define HW_DEAD_TIME_NSEC 1000.0
+#define HW_DEAD_TIME_NSEC 850.0
 
 
 // SPEsc MK4 Hardware pin configuration
