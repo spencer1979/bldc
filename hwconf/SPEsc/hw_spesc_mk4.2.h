@@ -37,7 +37,7 @@
 #define HW_HAS_3_SHUNTS
 #define HW_USE_INTERNAL_RC //We don't have an external crystal oscillator
 
-#define HW_DEAD_TIME_NSEC 850.0
+#define HW_DEAD_TIME_NSEC 1100.0
 
 
 // SPEsc MK4 Hardware pin configuration
@@ -301,7 +301,7 @@
 #define HW_LIM_VIN 24.0, 100 // use 100V cap for V3 , set 4.2*20S
 #define HW_LIM_ERPM -300e3, 300e3
 #define HW_LIM_DUTY_MIN 0.0, 0.1
-#define HW_LIM_DUTY_MAX 0.0, 0.98
+#define HW_LIM_DUTY_MAX 0.0, 0.92
 #define HW_LIM_TEMP_FET -40.0, 120.0
 
 #endif /* HW_SPESC_MK4*/
