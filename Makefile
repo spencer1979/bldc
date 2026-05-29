@@ -153,6 +153,10 @@ define FW_TEMPLATE
 $(1): fw_$(1)_vescfw
 fw_$(1): fw_$(1)_vescfw
 
+$(1)_hex: fw_$(1)_vescfw
+	@echo "********* BUILD HEX: $(1) **********"
+	$(V1) $(MAKE) -f $(MAKE_DIR)/fw.mk PROJECT="$(3)" hex
+
 ifeq ($(7),)
   $(1)_HW_DIR = $(dir $(filter %/hw_$(1).h, $(TARGET_PATHS)))
   $(1)_HW_HEADER = $$($(1)_HW_DIR)/hw_$(1).h

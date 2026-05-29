@@ -285,3 +285,6 @@ include $(RULESPATH)/rules.mk
 
 build/$(PROJECT)/$(PROJECT).bin: build/$(PROJECT)/$(PROJECT).elf
 	$(BIN) build/$(PROJECT)/$(PROJECT).elf build/$(PROJECT)/$(PROJECT).bin --gap-fill 0xFF
+
+build/$(PROJECT)/$(PROJECT).hex: build/$(PROJECT)/$(PROJECT).elf
+	$(HEX) build/$(PROJECT)/$(PROJECT).elf build/$(PROJECT)/$(PROJECT).hex
