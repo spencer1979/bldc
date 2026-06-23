@@ -184,6 +184,18 @@
  */
 
 /*
+ * Define these to enable BMI270 support on these pins.
+ *
+ * #define BMI270_SDA_GPIO		GPIOB
+ * #define BMI270_SDA_PIN		7
+ * #define BMI270_SCL_GPIO		GPIOB
+ * #define BMI270_SCL_PIN		6
+ *
+ * Optional I2C address override (default is 0x68):
+ * #define BMI270_I2C_ADDR		0x68
+ */
+
+/*
  * #define HW_HAS_PERMANENT_NRF
  *
  * The hardware has a permanently mounted NRF24. Also requires defining its pins:
@@ -570,15 +582,18 @@
 // Limit sample rate for the LSM6DS3 IMU due to the current polling mechanism
 // causing rare unexplained MCU resets when the rate is too high
 #if defined(LSM6DS3_USE_SPI)
-#if defined(LSM6DS3_HWSPI_DEV)
-#define HW_LIM_IMU_SAMPLE_RATE_HZ 10000
-#else
-#define HW_LIM_IMU_SAMPLE_RATE_HZ 2500
-#endif
+  #if defined(LSM6DS3_HWSPI_DEV)
+    #define HW_LIM_IMU_SAMPLE_RATE_HZ 10000
+  #else
+    #define HW_LIM_IMU_SAMPLE_RATE_HZ 2500
+  #endif
+#elif defined(BMI270_SDA_GPIO) || defined(BMI160_SDA_GPIO)
+  // 软体 I2C 取樣率限制（避免 MCU 重启）
+  #define HW_LIM_IMU_SAMPLE_RATE_HZ 1000
 #elif defined(LSM6DS3_SPEED_700KHZ)
-#define HW_LIM_IMU_SAMPLE_RATE_HZ	1200
+  #define HW_LIM_IMU_SAMPLE_RATE_HZ 1200
 #elif defined(LSM6DS3_SDA_GPIO) || defined(LSM6DS3_NSS_GPIO)
-#define HW_LIM_IMU_SAMPLE_RATE_HZ	900
+  #define HW_LIM_IMU_SAMPLE_RATE_HZ 900
 #endif
 
 #ifndef HW_LIM_FOC_CTRL_LOOP_FREQ
