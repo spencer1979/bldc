@@ -64,6 +64,7 @@
 #include "packet.h"
 #include "timer.h"
 #include "encoder_cfg.h"
+#include "ledpwm.h"
 
 #include <math.h>
 #include <ctype.h>
@@ -266,6 +267,11 @@ typedef struct {
 	lbm_uint adc_v1_end;
 	lbm_uint adc_v1_min;
 	lbm_uint adc_v1_max;
+	lbm_uint adc_v1_center;
+	lbm_uint adc_v2_start;
+	lbm_uint adc_v2_end;
+	lbm_uint adc_tc;
+	lbm_uint adc_tc_max_diff;
 	lbm_uint pas_current_scaling;
 	lbm_uint vr_ctrl_type;
 	lbm_uint vr_hyst;
@@ -707,6 +713,16 @@ static bool compare_symbol(lbm_uint sym, lbm_uint *comp) {
 			lbm_add_symbol_const("adc-v1-min", comp);
 		} else if (comp == &syms_vesc.adc_v1_max) {
 			lbm_add_symbol_const("adc-v1-max", comp);
+		} else if (comp == &syms_vesc.adc_v1_center) {
+			lbm_add_symbol_const("adc-v1-center", comp);
+		} else if (comp == &syms_vesc.adc_v2_start) {
+			lbm_add_symbol_const("adc-v2-start", comp);
+		} else if (comp == &syms_vesc.adc_v2_end) {
+			lbm_add_symbol_const("adc-v2-end", comp);
+		} else if (comp == &syms_vesc.adc_tc) {
+			lbm_add_symbol_const("adc-tc", comp);
+		} else if (comp == &syms_vesc.adc_tc_max_diff) {
+			lbm_add_symbol_const("adc-tc-max-diff", comp);
 		} else if (comp == &syms_vesc.pas_current_scaling) {
 			lbm_add_symbol_const("pas-current-scaling", comp);
 		} else if (comp == &syms_vesc.vr_ctrl_type) {
@@ -1481,9 +1497,6 @@ static lbm_value ext_recv_data(lbm_value *args, lbm_uint argn) {
 
 static lbm_value ext_get_remote_state(lbm_value *args, lbm_uint argn) {
 	(void)args; (void)argn;
-
-	float gyro[3];
-	imu_get_gyro_derotated(gyro);
 
 	lbm_value state = ENC_SYM_NIL;
 	state = lbm_cons(lbm_enc_float(app_nunchuk_get_update_age()), state);
@@ -4162,6 +4175,21 @@ static lbm_value ext_conf_set(lbm_value *args, lbm_uint argn) {
 		} else if (compare_symbol(name, &syms_vesc.adc_v1_max)) {
 			appconf->app_adc_conf.voltage_max = lbm_dec_as_float(args[1]);
 			changed_app = 2;
+		} else if (compare_symbol(name, &syms_vesc.adc_v1_center)) {
+			appconf->app_adc_conf.voltage_center = lbm_dec_as_float(args[1]);
+			changed_app = 2;
+		} else if (compare_symbol(name, &syms_vesc.adc_v2_start)) {
+			appconf->app_adc_conf.voltage2_start = lbm_dec_as_float(args[1]);
+			changed_app = 2;
+		} else if (compare_symbol(name, &syms_vesc.adc_v2_end)) {
+			appconf->app_adc_conf.voltage2_end = lbm_dec_as_float(args[1]);
+			changed_app = 2;
+		} else if (compare_symbol(name, &syms_vesc.adc_tc)) {
+			appconf->app_adc_conf.tc = lbm_dec_as_i32(args[1]);
+			changed_app = 2;
+		} else if (compare_symbol(name, &syms_vesc.adc_tc_max_diff)) {
+			appconf->app_adc_conf.tc_max_diff = lbm_dec_as_float(args[1]);
+			changed_app = 2;
 		} else if (compare_symbol(name, &syms_vesc.pas_current_scaling)) {
 			appconf->app_pas_conf.current_scaling = lbm_dec_as_float(args[1]);
 			changed_app = 2;
@@ -4570,6 +4598,16 @@ static lbm_value ext_conf_get(lbm_value *args, lbm_uint argn) {
 		res = lbm_enc_float(appconf->app_adc_conf.voltage_min);
 	} else if (compare_symbol(name, &syms_vesc.adc_v1_max)) {
 		res = lbm_enc_float(appconf->app_adc_conf.voltage_max);
+	} else if (compare_symbol(name, &syms_vesc.adc_v1_center)) {
+		res = lbm_enc_float(appconf->app_adc_conf.voltage_center);
+	} else if (compare_symbol(name, &syms_vesc.adc_v2_start)) {
+		res = lbm_enc_float(appconf->app_adc_conf.voltage2_start);
+	} else if (compare_symbol(name, &syms_vesc.adc_v2_end)) {
+		res = lbm_enc_float(appconf->app_adc_conf.voltage2_end);
+	} else if (compare_symbol(name, &syms_vesc.adc_tc)) {
+		res = lbm_enc_i(appconf->app_adc_conf.tc);
+	} else if (compare_symbol(name, &syms_vesc.adc_tc_max_diff)) {
+		res = lbm_enc_float(appconf->app_adc_conf.tc_max_diff);
 	} else if (compare_symbol(name, &syms_vesc.pas_current_scaling)) {
 		res = lbm_enc_float(appconf->app_pas_conf.current_scaling);
 	} else if (compare_symbol(name, &syms_vesc.vr_ctrl_type)) {
@@ -6039,10 +6077,49 @@ static lbm_value ext_shutdown_hold(lbm_value *args, lbm_uint argn) {
 	return ENC_SYM_TRUE;
 }
 
+static lbm_value ext_shutdown(lbm_value *args, lbm_uint argn) {
+	bool save_backup = true;
+	if (argn == 1) {
+		if (!is_symbol_true_false(args[0])) {
+			return ENC_SYM_TERROR;
+		}
+
+		save_backup = lbm_is_symbol_true(args[0]);
+	}
+
+	if (save_backup) {
+		conf_general_store_backup_data();
+	}
+
+	bool ok = do_shutdown(false);
+
+	if (ok) {
+		chThdSleepMilliseconds(10000);
+	} else {
+		mc_interface_ignore_input_both(100);
+	}
+
+	// We should not return, but if we do the shutdown failed
+	return ENC_SYM_NIL;
+}
+
+static lbm_value ext_shutdown_btn_read(lbm_value *args, lbm_uint argn) {
+	(void)args;
+	(void)argn;
+
+	return lbm_enc_i(shutdown_sample_button() ? 1 : 0);
+}
+
 static lbm_value ext_override_speed(lbm_value *args, lbm_uint argn) {
 	LBM_CHECK_ARGN_NUMBER(2);
 	mc_interface_override_wheel_speed(lbm_dec_as_i32(args[0]), lbm_dec_as_float(args[1]));
 	return ENC_SYM_TRUE;
+}
+
+static lbm_value ext_override_led(lbm_value *args, lbm_uint argn) {
+	LBM_CHECK_ARGN_NUMBER(2);
+	bool res = ledpwm_set_intensity_override(lbm_dec_as_i32(args[0]), lbm_dec_as_float(args[1]));
+	return res ? ENC_SYM_TRUE : ENC_SYM_NIL;
 }
 
 // Remote Messages
@@ -6451,7 +6528,10 @@ void lispif_load_vesc_extensions(bool main_found) {
 		lbm_add_extension("crc32", ext_crc32);
 		lbm_add_extension("buf-resize", ext_buf_resize);
 		lbm_add_extension("shutdown-hold", ext_shutdown_hold);
+		lbm_add_extension("shutdown", ext_shutdown);
+		lbm_add_extension("shutdown-btn-read", ext_shutdown_btn_read);
 		lbm_add_extension("override-speed", ext_override_speed);
+		lbm_add_extension("override-led", ext_override_led);
 
 		// APP commands
 		lbm_add_extension("app-adc-detach", ext_app_adc_detach);

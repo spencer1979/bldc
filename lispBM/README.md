@@ -890,6 +890,57 @@ Hold shutdown. When hold is true hardware shutdown will be delayed until hold is
 
 ---
 
+#### shutdown
+
+| Platforms | Firmware |
+|---|---|
+| ESC | 7.00.2+ |
+
+```clj
+(shutdown optSaveBackup)
+```
+
+Shutdown controller now. optSaveBackup sets whether the backup data (odometer etc.) should be save before shutting down (true by default). This function does not return on a succuessful shutdown. If it returns nil the shutdown has failed - this can happen if the hardware does not support shutdown or if the shutdown button is held pressed.
+
+---
+
+#### shutdown-btn-read
+
+| Platforms | Firmware |
+|---|---|
+| ESC | 7.00.2+ |
+
+```clj
+(shutdown-btn-read)
+```
+
+Read the shutdown button. Returns 0 when not pressed and 1 when pressed. Hardware without a button will always return 0. It is recommended to set the shutdown mode in the app config to always on to use the button as a general purpose button.
+
+Example:
+
+```clj
+; Turn off blue button LED
+(override-led 2 0)
+
+; Make button red when not pressed and green when pressed
+(loopwhile t {
+        (if (= (shutdown-btn-read) 1)
+            {
+                (override-led 3 1)
+                (override-led 4 0)
+            }
+            {
+                (override-led 3 0)
+                (override-led 4 1)
+            }
+        )
+
+        (sleep 0.01)
+})
+```
+
+---
+
 #### reboot
 
 | Platforms | Firmware |
@@ -922,6 +973,39 @@ Override speed reported to VESC Tool (and to other extensions). The argument spe
 
 ; Do not override speed anymore
 (overide-speed 0 0)
+```
+
+---
+
+#### override-led
+
+| Platforms | Firmware |
+|---|---|
+| ESC | 7.00.2+ |
+
+```clj
+(overide-led led-id intensity)
+```
+
+Override the LED brightness on hardware LEDs. Almost all hardware has a red and green LED, but some hardware also has an RGB LED button. All of these LED intensities can be overridden. The argument led-id is the id of the LED to override and intensity is the intensity to override with. If intensity is set to -1 the LED will return to the default behavior. Returns true if led-id is valid for this hardware, false otherwise.
+
+The following IDs are used on most hardwares, although it can vary. Most VESC Labs hardware has an RGB button.
+
+| led-id | Function |
+|---|---|
+| 0 | HW Green LED |
+| 1 | HW Red LED |
+| 2 | RGB Button Blue |
+| 3 | RGB Button Green |
+| 4 | RGB Button Red |
+
+Example:
+```clj
+; Set the green LED to 50% brightness
+(overide-led 0 0.5)
+
+; Stop overriding the green LED and restore its default behavior
+(overide-led 0 -1.0)
 ```
 
 ---
@@ -4181,34 +4265,39 @@ The following selection of app and motor parameters can be read and set from Lis
 'adc-thr-hyst           ; Throttle deadband, range 0 to 1 (Added in FW 6.05)
 'adc-v1-start           ; Throttle 1 start voltage (Added in FW 6.05)
 'adc-v1-end             ; Throttle 1 end voltage (Added in FW 6.05)
+'adc-v1-center          ; Center position voltage for throttle (Added in FW 7.00.1)
+'adc-tc                 ; Traction control (multi-ESC only, Added in FW 7.00.2)
+'adc-tc-max-diff        ; Traction control max ERPM diff (Added in FW 7.00.2)
 'adc-v1-min             ; Throttle 1 low fault voltage (Added in FW 6.05)
 'adc-v1-max             ; Throttle 1 high fault voltage (Added in FW 6.05)
+'adc-v2-start           ; Throttle 2 start voltage (Added in FW 7.00.1)
+'adc-v2-end             ; Throttle 2 end voltage (Added in FW 7.00.1)
 'pas-current-scaling    ; PAS current scaling (Added in FW 6.05)
 
 ; VESC Remote App (Added in firmware 7.00)
-'vr_ctrl_type           ; Control Type
+'vr-ctrl-type           ; Control Type
                         ;    0: NONE
                         ;    1: CURRENT
                         ;    2: CURRENT_NOREV
                         ;    3: CURRENT_BIDIRECTIONAL
-'vr_hyst                ; Input deadband, range 0 to 1
-'vr_ramp_time_pos       ; Positive ramping time in seconds
-'vr_ramp_time_neg       ; Negative ramping time in seconds
-'vr_cc_erpm_per_s       ; Cruise control ERPM per second throttle ramp speed
-'vr_throttle_exp        ; Curve gain for the throttle. 0 means linear.
-'vr_throttle_exp_brake  ; Curve gain for the throttle when braking
-'vr_throttle_exp_mode   ; Throttle curve mode
+'vr-hyst                ; Input deadband, range 0 to 1
+'vr-ramp-time-pos       ; Positive ramping time in seconds
+'vr-ramp-time-neg       ; Negative ramping time in seconds
+'vr-cc-erpm-per-s       ; Cruise control ERPM per second throttle ramp speed
+'vr-throttle-exp        ; Curve gain for the throttle. 0 means linear.
+'vr-throttle-exp-brake  ; Curve gain for the throttle when braking
+'vr-throttle-exp-mode   ; Throttle curve mode
                         ;    0: Exponential
                         ;    1: Natural
                         ;    2: Polynomial
-'vr_multi_esc           ; Control multiple ESCs over CAN
-'vr_tc                  ; Traction control (multi-ESC only)
-'vr_tc_max_diff         ; Traction control max ERPM diff
-'vr_use_smart_rev       ; Use smart reverse when holding full brake
-'vr_smart_rev_max_duty  ; Maximum duty cycle for smart reverse
-'vr_smart_rev_ramp_time ; Smart reverse ramp time in seconds
-'vr_coast_brake_level   ; Brake to apply when coasting
-'vr_coast_brake_ramp_time ; Time to ramp up coasting brake in seconds
+'vr-multi-esc           ; Control multiple ESCs over CAN
+'vr-tc                  ; Traction control (multi-ESC only)
+'vr-tc-max-diff         ; Traction control max ERPM diff
+'vr-use-smart-rev       ; Use smart reverse when holding full brake
+'vr-smart-rev-max-duty  ; Maximum duty cycle for smart reverse
+'vr-smart-rev-ramp-time ; Smart reverse ramp time in seconds
+'vr-coast-brake-level   ; Brake to apply when coasting
+'vr-coast-brake-ramp-time ; Time to ramp up coasting brake in seconds
 
 ; Express settings (Added in firmware 6.05)
 'controller-id          ; VESC CAN ID

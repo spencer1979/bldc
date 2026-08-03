@@ -71,6 +71,7 @@
 
 #define HW_SHUTDOWN_HOLD_ON();
 #define HW_SAMPLE_SHUTDOWN()		1
+#define HW_SAMPLE_SHUTDOWN_OVR()	smart_switch_is_pressed()
 #define HW_SHUTDOWN_HOLD_OFF()		palClearPad(SWITCH_OUT_GPIO, SWITCH_OUT_PIN);
 #define HW_SHUTDOWN_NO
 
@@ -290,6 +291,19 @@
 #endif
 
 // LSM6DS3
+#define LSM6DS3_USE_SPI
+#define LSM6DS3_HWSPI_DEV		SPID3
+#define LSM6DS3_HWSPI_AF		GPIO_AF_SPI3
+#define LSM6DS3_NSS_GPIO		GPIOB
+#define LSM6DS3_NSS_PIN			12
+#define LSM6DS3_SCK_GPIO		GPIOC
+#define LSM6DS3_SCK_PIN			10
+#define LSM6DS3_MOSI_GPIO		GPIOC
+#define LSM6DS3_MOSI_PIN		12
+#define LSM6DS3_MISO_GPIO		GPIOC
+#define LSM6DS3_MISO_PIN		11
+
+// LSM6DS3 i2c fallback on old hardware
 #define LSM6DS3_SDA_GPIO		GPIOB
 #define LSM6DS3_SDA_PIN			9
 #define LSM6DS3_SCL_GPIO		GPIOB
@@ -331,6 +345,9 @@
 #endif
 #ifndef MCCONF_L_IN_CURRENT_MIN
 #define MCCONF_L_IN_CURRENT_MIN			-45.0	// Input current limit in Amperes (Lower)
+#endif
+#ifndef MCCONF_L_MIN_VOLTAGE
+#define MCCONF_L_MIN_VOLTAGE			12.0		// Minimum input voltage
 #endif
 
 #ifdef HW_XS60
