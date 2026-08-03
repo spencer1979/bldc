@@ -28,6 +28,7 @@
 #include "bmi160_wrapper.h"
 #include "bmi270_wrapper.h"
 #include "lsm6ds3.h"
+#include "lsm6dso_wrapper.h"
 #include "utils_math.h"
 #include "Fusion.h"
 #include "digital_filter.h"
@@ -46,6 +47,7 @@ static ICM20948_STATE m_icm20948_state;
 static BMI_STATE m_bmi_state;
 static BMI270_STATE m_bmi270_state;
 static uint8_t m_bmi270_i2c_addr;
+static LSM6DSO_STATE m_lsm6dso_state;
 static imu_config m_settings;
 static systime_t init_time;
 static bool imu_ready;
@@ -159,6 +161,12 @@ void imu_init(imu_config *set) {
 		imu_init_bmi270_i2c(BMI270_SDA_GPIO, BMI270_SDA_PIN,
 				BMI270_SCL_GPIO, BMI270_SCL_PIN);
 		m_imu_type_internal = "BMI270";
+#endif
+
+#ifdef LSM6DSO_SDA_GPIO
+		imu_init_lsm6dso_i2c(LSM6DSO_SDA_GPIO, LSM6DSO_SDA_PIN,
+				LSM6DSO_SCL_GPIO, LSM6DSO_SCL_PIN);
+		m_imu_type_internal = "LSM6DSO";
 #endif
 
 #if defined(LSM6DS3_SDA_GPIO) && !defined(LSM6DS3_USE_SPI)
@@ -396,12 +404,37 @@ bool imu_init_lsm6ds3_spi(stm32_gpio_t *nss_gpio, int nss_pin,
 	return res;
 }
 
+void imu_init_lsm6dso_i2c(stm32_gpio_t *sda_gpio, int sda_pin,
+		stm32_gpio_t *scl_gpio, int scl_pin) {
+	imu_stop();
+
+	memset(&m_lsm6dso_state, 0, sizeof(m_lsm6dso_state));
+
+	m_lsm6dso_state.i2c_bb.sda_gpio = sda_gpio;
+	m_lsm6dso_state.i2c_bb.sda_pin = sda_pin;
+	m_lsm6dso_state.i2c_bb.scl_gpio = scl_gpio;
+	m_lsm6dso_state.i2c_bb.scl_pin = scl_pin;
+	m_lsm6dso_state.i2c_bb.rate = I2C_BB_RATE_400K;
+
+	i2c_bb_init(&m_lsm6dso_state.i2c_bb);
+
+	m_lsm6dso_state.sensor.interface = LSM6DSO_I2C_INTF;
+	m_lsm6dso_state.rate_hz = 1000;
+	m_lsm6dso_state.filter = IMU_FILTER_MEDIUM;
+
+	lsm6dso_wrapper_init(&m_lsm6dso_state, m_thd_work_area, sizeof(m_thd_work_area));
+	lsm6dso_wrapper_set_read_callback(&m_lsm6dso_state, imu_read_callback);
+
+	m_imu_type_internal = "LSM6DSO";
+}
+
 void imu_stop(void) {
 	mpu9150_stop();
 	icm20948_stop(&m_icm20948_state);
 	bmi160_wrapper_stop(&m_bmi_state);
 	bmi270_wrapper_stop(&m_bmi270_state);
 	lsm6ds3_stop();
+	lsm6dso_wrapper_stop(&m_lsm6dso_state);
 
 #ifdef LSM6DS3_HWSPI_DEV
 	spiStop(&LSM6DS3_HWSPI_DEV);

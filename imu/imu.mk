@@ -8,6 +8,7 @@ IMUSRC = 	imu/mpu9150.c \
 			imu/bmi160_wrapper.c \
 			imu/bmi270_wrapper.c \
 			imu/lsm6ds3.c \
+			imu/lsm6dso_wrapper.c \
 			imu/Fusion/FusionAhrs.c \
 			imu/Fusion/FusionBias.c \
 			imu/Fusion/FusionCompass.c
