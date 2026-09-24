@@ -27,27 +27,63 @@
 
 // Version-specific IMU configuration
 #ifdef HW_SPESC_MK4
-    // MK4 uses BMI160 on I2C
-    #define BMI160_SDA_GPIO GPIOB
-    #define BMI160_SDA_PIN 2
-    #define BMI160_SCL_GPIO GPIOA
-    #define BMI160_SCL_PIN 15
-    #define IMU_ROT_90
-#elif defined(HW_SPESC_MK5)
-    #ifdef HW_SPESC_MK5_LSM6DSO
-        // MK5 with LSM6DSO on I2C
+    #ifdef HW_SPESC_MK4_BMI160
+        // MK4 with BMI160 on I2C
+        #define BMI160_SDA_GPIO GPIOB
+        #define BMI160_SDA_PIN 2
+        #define BMI160_SCL_GPIO GPIOA
+        #define BMI160_SCL_PIN 15
+        
+        
+    #elif defined(HW_SPESC_MK4_LSM6DSO)
+
+        // MK4 with LSM6DSO on I2C
         #define LSM6DSO_SDA_GPIO GPIOB
         #define LSM6DSO_SDA_PIN 2
         #define LSM6DSO_SCL_GPIO GPIOA
         #define LSM6DSO_SCL_PIN 15
-        #define IMU_ROT_90
+        
+        
+    #elif defined(HW_SPESC_MK4_LSM6DSV32X)
+        // MK4 with LSM6DSV32X on I2C
+        #define LSM6DSV32X_SDA_GPIO GPIOB
+        #define LSM6DSV32X_SDA_PIN 2
+        #define LSM6DSV32X_SCL_GPIO GPIOA
+        #define LSM6DSV32X_SCL_PIN 15
+      
+    #elif defined(HW_SPESC_MK4_LSM6DS3)
+        // MK4 with LSM6DS3 on I2C
+        #define LSM6DS3_SDA_GPIO GPIOB
+        #define LSM6DS3_SDA_PIN 2
+        #define LSM6DS3_SCL_GPIO GPIOA
+        #define LSM6DS3_SCL_PIN 15
+      
+    
     #else
-        // MK5 uses BMI270 on I2C (default)
-        #define BMI270_SDA_GPIO GPIOB
-        #define BMI270_SDA_PIN 2
-        #define BMI270_SCL_GPIO GPIOA
-        #define BMI270_SCL_PIN 15
+        // MK4 default uses BMI160 on I2C
+        #define BMI160_SDA_GPIO GPIOB
+        #define BMI160_SDA_PIN 2
+        #define BMI160_SCL_GPIO GPIOA
+        #define BMI160_SCL_PIN 15
         #define IMU_ROT_90
+    #endif
+#endif
+#ifdef HW_SPESC_MK5
+    #ifdef HW_SPESC_MK5_BMI160
+        #define BMI160_SDA_GPIO GPIOB
+        #define BMI160_SDA_PIN 2
+        #define BMI160_SCL_GPIO GPIOA
+        #define BMI160_SCL_PIN 15
+    #elif defined(HW_SPESC_MK5_LSM6DSV32X)
+        #define LSM6DSV32X_SDA_GPIO GPIOB
+        #define LSM6DSV32X_SDA_PIN 2
+        #define LSM6DSV32X_SCL_GPIO GPIOA
+        #define LSM6DSV32X_SCL_PIN 15
+    #elif defined(HW_SPESC_MK5_LSM6DSO)
+        #define LSM6DSO_SDA_GPIO GPIOB
+        #define LSM6DSO_SDA_PIN 2
+        #define LSM6DSO_SCL_GPIO GPIOA
+        #define LSM6DSO_SCL_PIN 15
     #endif
 #endif
 #define LIGHT_FRONT_GPIO GPIOC
@@ -116,8 +152,13 @@
 #define ADC_IND_VIN_SENS 11
 #define ADC_IND_EXT 6
 #define ADC_IND_EXT2 7
+#ifdef HW_SPESC_MK5
+#define ADC_IND_TEMP_MOTOR 8
+#define ADC_IND_TEMP_MOS 9
+#else
 #define ADC_IND_TEMP_MOS 8
 #define ADC_IND_TEMP_MOTOR 9
+#endif
 #define ADC_IND_VREFINT 12
 
 // ADC macros and settings
@@ -148,7 +189,19 @@
 // Input voltage
 #define GET_INPUT_VOLTAGE() (((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2) )+VIN_OFFSET)
 
-// NTC Thermistors
+// Temperature Sensor Selection
+// 使用 NTC 溫度傳感器時的定義 (預設)
+// 使用 MCP9700A 時定義 #define USE_MCP9700A
+
+#ifdef USE_MCP9700A
+// MCP9700A Linear Temperature Sensor (10mV/°C, 500mV @ 0°C)
+// Formula: T(°C) = ((ADC_Voltage - 0.5V) / 0.01V)
+#define NTC_TEMP_OFFSET 0.0f
+#define NTC_TEMP(adc_ind) (((((float)ADC_Value[adc_ind] / 4095.0f) * V_REG) - 0.5f) / 0.01f)
+#define NTC_TEMP_MOTOR(unused) (((((float)ADC_Value[ADC_IND_TEMP_MOTOR] / 4095.0f) * V_REG) - 0.5f) / 0.01f)
+
+#else
+// NTC Thermistors (預設: 10K NTC 3380)
 #define NTC_TEMP_OFFSET 2.0f // 根據實測溫差調整，正值表示ADC溫度偏低
 
 #define NTC_RES(adc_val) ((4095.0 * 10500.0) / adc_val - 10500.0)
@@ -156,6 +209,8 @@
 
 #define NTC_RES_MOTOR(adc_val) (10000.0f / ((4095.0f / (float)(adc_val)) - 1.0f)) // Motor temp sensor on low side
 #define NTC_TEMP_MOTOR(beta) ((1.0f / ((logf(NTC_RES_MOTOR(ADC_Value[ADC_IND_TEMP_MOTOR]) / 10000.0f) / (beta)) + (1.0f / 298.15f)) - 273.15f) + NTC_TEMP_OFFSET)
+
+#endif
 
 // Voltage on ADC channel
 #define ADC_VOLTS(ch) ((float)ADC_Value[ch] / 4096.0 * V_REG)
@@ -243,10 +298,12 @@
 #define HW_UART_P_RX_PIN 11
 
 // NRF SWD
+#ifndef HW_SPESC_MK5
 #define NRF5x_SWDIO_GPIO GPIOB
 #define NRF5x_SWDIO_PIN 3
 #define NRF5x_SWCLK_GPIO GPIOB
 #define NRF5x_SWCLK_PIN 4
+#endif
 
 // Measurement macros
 #define ADC_V_L1 ADC_Value[ADC_IND_SENS1]

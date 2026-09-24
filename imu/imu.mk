@@ -1,19 +1,16 @@
-IMUSRC = 	imu/mpu9150.c \
-			imu/icm20948.c \
-			imu/ahrs.c \
+IMUSRC = 	imu/ahrs.c \
 			imu/imu.c \
+			imu/mpu9150.c \
+			imu/icm20948.c \
 			imu/BMI160_driver/bmi160.c \
-			imu/BMI270_driver/bmi2.c \
-			imu/BMI270_driver/bmi270.c \
 			imu/bmi160_wrapper.c \
-			imu/bmi270_wrapper.c \
 			imu/lsm6ds3.c \
-			imu/lsm6dso_wrapper.c \
+			imu/lsm6dso.c \
+			imu/lsm6dsv32x_vesc.c \
 			imu/Fusion/FusionAhrs.c \
 			imu/Fusion/FusionBias.c \
 			imu/Fusion/FusionCompass.c
 
 IMUINC = 	imu \
 			imu/BMI160_driver \
-			imu/BMI270_driver \
 			imu/Fusion
