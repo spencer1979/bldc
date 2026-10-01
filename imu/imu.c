@@ -27,7 +27,6 @@
 #include "icm20948.h"
 #include "bmi160_wrapper.h"
 #include "lsm6ds3.h"
-#include "lsm6dso.h"
 #include "lsm6dsv32x_vesc.h"
 #include "utils_math.h"
 #include "Fusion.h"
@@ -123,12 +122,10 @@ void imu_init(imu_config *set) {
 	m_icm20948_state.rate_hz = MIN(set->sample_rate_hz, 1000);
 	m_bmi_state.rate_hz = set->sample_rate_hz;
 	lsm6ds3_set_rate_hz(set->sample_rate_hz);
-	lsm6dso_set_rate_hz(set->sample_rate_hz);
 	lsm6dsv32x_vesc_set_rate_hz(set->sample_rate_hz);
 
 	m_bmi_state.filter = set->filter;
 	lsm6ds3_set_filter(set->filter);
-	lsm6dso_set_filter(set->filter);
 	lsm6dsv32x_vesc_set_filter(set->filter);
 
 	if (set->type == IMU_TYPE_INTERNAL) {
@@ -148,12 +145,6 @@ void imu_init(imu_config *set) {
 		imu_init_bmi160_i2c(BMI160_SDA_GPIO, BMI160_SDA_PIN,
 				BMI160_SCL_GPIO, BMI160_SCL_PIN);
 		m_imu_type_internal = "BMI160";
-#endif
-
-#ifdef LSM6DSO_SDA_GPIO
-		imu_init_lsm6dso_i2c(LSM6DSO_SDA_GPIO, LSM6DSO_SDA_PIN,
-				LSM6DSO_SCL_GPIO, LSM6DSO_SCL_PIN);
-		m_imu_type_internal = "LSM6DSO";
 #endif
 
 #ifdef LSM6DSV32X_SDA_GPIO
@@ -373,26 +364,6 @@ bool imu_init_lsm6ds3_spi(stm32_gpio_t *nss_gpio, int nss_pin,
 	return res;
 }
 
-void imu_init_lsm6dso_i2c(stm32_gpio_t *sda_gpio, int sda_pin,
-		stm32_gpio_t *scl_gpio, int scl_pin) {
-	imu_stop();
-
-	m_i2c_bb.sda_gpio = sda_gpio;
-	m_i2c_bb.sda_pin = sda_pin;
-	m_i2c_bb.scl_gpio = scl_gpio;
-	m_i2c_bb.scl_pin = scl_pin;
-	m_i2c_bb.rate = I2C_BB_RATE_400K;
-
-	i2c_bb_init(&m_i2c_bb);
-
-	lsm6dso_set_rate_hz(1000);
-	lsm6dso_set_filter(IMU_FILTER_MEDIUM);
-	lsm6dso_init(&m_i2c_bb, NULL, NULL, m_thd_work_area, sizeof(m_thd_work_area));
-	lsm6dso_set_read_callback(imu_read_callback);
-
-	m_imu_type_internal = "LSM6DSO";
-}
-
 void imu_init_lsm6dsv32x_i2c(stm32_gpio_t *sda_gpio, int sda_pin,
 		stm32_gpio_t *scl_gpio, int scl_pin) {
 	imu_stop();
@@ -418,7 +389,6 @@ void imu_stop(void) {
 	icm20948_stop(&m_icm20948_state);
 	bmi160_wrapper_stop(&m_bmi_state);
 	lsm6ds3_stop();
-	lsm6dso_stop();
 	lsm6dsv32x_vesc_stop();
 
 #ifdef LSM6DS3_HWSPI_DEV
