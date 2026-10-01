@@ -30,8 +30,10 @@
 static volatile bool i2c_running = false;
 
 // fan control thread
+#ifndef HW_SPESC_MK5
 static THD_WORKING_AREA(fan_control_thread_wa, 128);
 static THD_FUNCTION(fan_control_thread, arg);
+#endif
 
 // I2C configuration
 static const I2CConfig i2cfg = {
@@ -60,15 +62,19 @@ void hw_init_gpio(void)
                   PAL_MODE_OUTPUT_PUSHPULL |
                       PAL_STM32_OSPEED_HIGHEST);
 
+#ifndef HW_MK5_NO_LIGHT_BACK
     palSetPadMode(LIGHT_BACK_GPIO, LIGHT_BACK_PIN,
                   PAL_MODE_OUTPUT_PUSHPULL |
                       PAL_STM32_OSPEED_HIGHEST); // Rear light
+#endif
     palSetPadMode(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN,
                   PAL_MODE_OUTPUT_PUSHPULL |
                       PAL_STM32_OSPEED_HIGHEST); // front light
+#ifndef HW_MK5_NO_FAN_CONTROL
     palSetPadMode(FAN_GPIO, FAN_PIN,
                   PAL_MODE_OUTPUT_PUSHPULL |
                       PAL_STM32_OSPEED_HIGHEST); // fan
+#endif
 
     palSetPadMode(EXTERNAL_DCDC_GPIO, EXTERNAL_DCDC_PIN,
                   PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST); // external dc-dc board power on/off control
@@ -85,22 +91,43 @@ void hw_init_gpio(void)
     chThdSleepMilliseconds(100);
     EXT_BUZZER_OFF();
 
-    // Test Fan
+    // Test Fan and Lights
+#ifndef HW_MK5_NO_FAN_CONTROL
     FAN_ON();
+#endif
+
     LIGHT_FRONT_ON();
+
+#ifndef HW_MK5_NO_LIGHT_BACK
     LIGHT_BACK_ON();
+#endif
+
     chThdSleepMilliseconds(200);
+
+#ifndef HW_MK5_NO_LIGHT_BACK
     LIGHT_BACK_OFF();
+#endif
+
     LIGHT_FRONT_OFF();
+
     chThdSleepMilliseconds(200);
+
     LIGHT_FRONT_ON();
+
+#ifndef HW_MK5_NO_LIGHT_BACK
     LIGHT_BACK_ON();
+#endif
+
     chThdSleepMilliseconds(200);
+#ifndef HW_MK5_NO_LIGHT_BACK
     LIGHT_BACK_OFF();
+#endif
     LIGHT_FRONT_OFF();
 
     // FAN control default off
+#ifndef HW_MK5_NO_FAN_CONTROL
     FAN_OFF();
+#endif
 
     // External dcdc control default on
     EXT_DCDC_ON();
@@ -167,9 +194,13 @@ void hw_setup_adc_channels(void)
     ADC_InjectedChannelConfig(ADC1, ADC_Channel_10, 3, ADC_SampleTime_15Cycles);
     ADC_InjectedChannelConfig(ADC2, ADC_Channel_11, 3, ADC_SampleTime_15Cycles);
     ADC_InjectedChannelConfig(ADC3, ADC_Channel_12, 3, ADC_SampleTime_15Cycles);
+#define GET_INPUT_VOLTAGE() (((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2) )+VIN_OFFSET)
 
+#ifndef HW_MK5_NO_FAN_CONTROL
     // fan control thread
     chThdCreateStatic(fan_control_thread_wa, sizeof(fan_control_thread_wa), LOWPRIO, fan_control_thread, NULL);
+#endif
+
 }
 
 void hw_start_i2c(void)
@@ -272,6 +303,7 @@ void hw_try_restore_i2c(void)
     }
 }
 
+#ifndef  HW_MK5_NO_FAN_CONTROL
 static THD_FUNCTION(fan_control_thread, arg)
 {
     (void)arg;
@@ -300,3 +332,4 @@ static THD_FUNCTION(fan_control_thread, arg)
         chThdSleepMilliseconds(2000);
     }
 }
+#endif

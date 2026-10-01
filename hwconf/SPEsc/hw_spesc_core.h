@@ -35,15 +35,6 @@
         #define BMI160_SCL_PIN 15
         
         
-    #elif defined(HW_SPESC_MK4_LSM6DSO)
-
-        // MK4 with LSM6DSO on I2C
-        #define LSM6DSO_SDA_GPIO GPIOB
-        #define LSM6DSO_SDA_PIN 2
-        #define LSM6DSO_SCL_GPIO GPIOA
-        #define LSM6DSO_SCL_PIN 15
-        
-        
     #elif defined(HW_SPESC_MK4_LSM6DSV32X)
         // MK4 with LSM6DSV32X on I2C
         #define LSM6DSV32X_SDA_GPIO GPIOB
@@ -56,8 +47,7 @@
         #define LSM6DS3_SDA_GPIO GPIOB
         #define LSM6DS3_SDA_PIN 2
         #define LSM6DS3_SCL_GPIO GPIOA
-        #define LSM6DS3_SCL_PIN 15
-      
+        #define LSM6DS3_SCL_PIN 15  
     
     #else
         // MK4 default uses BMI160 on I2C
@@ -68,7 +58,13 @@
         #define IMU_ROT_90
     #endif
 #endif
+
 #ifdef HW_SPESC_MK5
+    // MK5 版本特性定義
+    #define HW_SPESC_MK5_VERSION
+    #define HW_MK5_NO_FAN_CONTROL      // MK5 移除 fan_control_thread，不使用 FAN_GPIO 和 FAN_PIN
+    #define HW_MK5_NO_LIGHT_BACK       // MK5 不使用 LIGHT_BACK (PB5)
+    
     #ifdef HW_SPESC_MK5_BMI160
         #define BMI160_SDA_GPIO GPIOB
         #define BMI160_SDA_PIN 2
@@ -79,13 +75,14 @@
         #define LSM6DSV32X_SDA_PIN 2
         #define LSM6DSV32X_SCL_GPIO GPIOA
         #define LSM6DSV32X_SCL_PIN 15
-    #elif defined(HW_SPESC_MK5_LSM6DSO)
-        #define LSM6DSO_SDA_GPIO GPIOB
-        #define LSM6DSO_SDA_PIN 2
-        #define LSM6DSO_SCL_GPIO GPIOA
-        #define LSM6DSO_SCL_PIN 15
+    #elif defined(HW_SPESC_MK5_LSM6DS3)
+        #define LSM6DS3_SDA_GPIO GPIOB
+        #define LSM6DS3_SDA_PIN 2
+        #define LSM6DS3_SCL_GPIO GPIOA
+        #define LSM6DS3_SCL_PIN 15
     #endif
 #endif
+
 #define LIGHT_FRONT_GPIO GPIOC
 #define LIGHT_FRONT_PIN 5
 
@@ -106,14 +103,17 @@
 #define HAS_EXT_BUZZER 1
 #define EXT_BUZZER_ON() palSetPad(HW_ICU_GPIO, HW_ICU_PIN) // Servo pin
 #define EXT_BUZZER_OFF() palClearPad(HW_ICU_GPIO, HW_ICU_PIN)
+
 // Enable J17 J16 COB LED
 #define LIGHT_FRONT_ON() palSetPad(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN)
 #define LIGHT_FRONT_OFF() palClearPad(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN)
 #define LIGHT_BACK_ON() palSetPad(LIGHT_BACK_GPIO, LIGHT_BACK_PIN)
 #define LIGHT_BACK_OFF() palClearPad(LIGHT_BACK_GPIO, LIGHT_BACK_PIN)
+
 // 5V FAN control
 #define FAN_ON() palSetPad(FAN_GPIO, FAN_PIN)
 #define FAN_OFF() palClearPad(FAN_GPIO, FAN_PIN)
+
 // External dcdc control
 #define EXT_DCDC_ON() palSetPad(EXTERNAL_DCDC_GPIO, EXTERNAL_DCDC_PIN)
 #define EXT_DCDC_OFF() palClearPad(EXTERNAL_DCDC_GPIO, EXTERNAL_DCDC_PIN)
