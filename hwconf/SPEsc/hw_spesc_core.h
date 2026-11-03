@@ -180,7 +180,7 @@
 // Component parameters (can be overridden)
 #ifdef HW_SPESC_MK5
 #ifndef V_REG
-#define V_REG 3.34
+#define V_REG 3.33
 #endif
 #else
 #ifndef V_REG
@@ -188,7 +188,7 @@
 #endif
 #endif
 
-#define VIN_OFFSET -0.33
+#define VIN_OFFSET -0.13
 
 #ifdef HW_SPESC_MK5
 #ifndef VIN_R1
