@@ -49,6 +49,13 @@ void hw_init_gpio(void)
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 
+#ifdef HW_SPESC_MK5
+    // Legacy VESC SPI encoder footprint (PA4 NSS, PA7 MOSI) — floating input, never driven.
+    // PA5/PA6 are configured as ADC below.
+    palSetPadMode(GPIOA, 4, PAL_MODE_INPUT);
+    palSetPadMode(GPIOA, 7, PAL_MODE_INPUT);
+#endif
+
     // LEDs
     palSetPadMode(GPIOB, 0,
                   PAL_MODE_OUTPUT_PUSHPULL |
@@ -57,10 +64,20 @@ void hw_init_gpio(void)
                   PAL_MODE_OUTPUT_PUSHPULL |
                       PAL_STM32_OSPEED_HIGHEST);
 
-    // External Buzzer (using servo pin!)
-    palSetPadMode(HW_ICU_GPIO, HW_ICU_PIN,
+    // External buzzer on PB6
+    palSetPadMode(EXT_BUZZER_GPIO, EXT_BUZZER_PIN,
                   PAL_MODE_OUTPUT_PUSHPULL |
                       PAL_STM32_OSPEED_HIGHEST);
+    EXT_BUZZER_OFF();
+
+    // test buzzer
+    EXT_BUZZER_ON();
+    chThdSleepMilliseconds(100);
+    EXT_BUZZER_OFF();
+    chThdSleepMilliseconds(100);
+    EXT_BUZZER_ON();
+    chThdSleepMilliseconds(100);
+    EXT_BUZZER_OFF();
 
 #ifndef HW_MK5_NO_LIGHT_BACK
     palSetPadMode(LIGHT_BACK_GPIO, LIGHT_BACK_PIN,
@@ -81,15 +98,6 @@ void hw_init_gpio(void)
 
     // External board control default off
     EXT_DCDC_OFF();
-
-    // test buzzer
-    EXT_BUZZER_ON();
-    chThdSleepMilliseconds(100);
-    EXT_BUZZER_OFF();
-    chThdSleepMilliseconds(100);
-    EXT_BUZZER_ON();
-    chThdSleepMilliseconds(100);
-    EXT_BUZZER_OFF();
 
     // Test Fan and Lights
 #ifndef HW_MK5_NO_FAN_CONTROL
@@ -129,7 +137,7 @@ void hw_init_gpio(void)
     FAN_OFF();
 #endif
 
-    // External dcdc control default on
+    // External DC-DC board enable (unrelated to buzzer)
     EXT_DCDC_ON();
 
     // GPIOA Configuration: Channel 1 to 3 as alternate function push-pull

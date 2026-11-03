@@ -594,6 +594,12 @@
   #else
     #define HW_LIM_IMU_SAMPLE_RATE_HZ 2500
   #endif
+#elif defined(LSM6DSV32X_USE_SPI)
+  #if defined(LSM6DSV32X_HWSPI_DEV)
+    #define HW_LIM_IMU_SAMPLE_RATE_HZ 10000
+  #else
+    #define HW_LIM_IMU_SAMPLE_RATE_HZ 2500
+  #endif
 #elif defined(BMI270_SDA_GPIO) || defined(BMI160_SDA_GPIO)
   // 软体 I2C 取樣率限制（避免 MCU 重启）
   #define HW_LIM_IMU_SAMPLE_RATE_HZ 1000

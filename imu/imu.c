@@ -72,6 +72,21 @@ static SPIConfig m_lsm6ds3_hw_spi_cfg = {
 };
 #endif
 
+#ifdef LSM6DSV32X_HWSPI_DEV
+static SPIConfig m_lsm6dsv32x_hw_spi_cfg = {
+		NULL, LSM6DSV32X_NSS_GPIO, LSM6DSV32X_NSS_PIN,
+		SPI_BaudRatePrescaler_16 | SPI_MODE_3 | SPI_DATASIZE_8BIT
+};
+#endif
+
+#ifdef BMI160_HWSPI_DEV
+static SPIDriver *m_bmi_hwspi;
+static SPIConfig m_bmi160_hw_spi_cfg = {
+		NULL, BMI160_SPI_PORT_NSS, BMI160_SPI_PIN_NSS,
+		SPI_BaudRatePrescaler_16 | SPI_MODE_0 | SPI_DATASIZE_8BIT
+};
+#endif
+
 // Private functions
 static void imu_read_callback(float *accel, float *gyro, float *mag);
 static int8_t user_i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint16_t len);
@@ -147,7 +162,19 @@ void imu_init(imu_config *set) {
 		m_imu_type_internal = "BMI160";
 #endif
 
-#ifdef LSM6DSV32X_SDA_GPIO
+#if defined(LSM6DSV32X_USE_SPI) && defined(LSM6DSV32X_NSS_GPIO)
+		if (imu_init_lsm6dsv32x_spi(
+				LSM6DSV32X_NSS_GPIO, LSM6DSV32X_NSS_PIN,
+				LSM6DSV32X_SCK_GPIO, LSM6DSV32X_SCK_PIN,
+				LSM6DSV32X_MOSI_GPIO, LSM6DSV32X_MOSI_PIN,
+				LSM6DSV32X_MISO_GPIO, LSM6DSV32X_MISO_PIN)) {
+#ifdef LSM6DSV32X_HWSPI_DEV
+			m_imu_type_internal = "LSM6DSV32X_SPI_HW";
+#else
+			m_imu_type_internal = "LSM6DSV32X_SPI";
+#endif
+		}
+#elif defined(LSM6DSV32X_SDA_GPIO)
 		imu_init_lsm6dsv32x_i2c(LSM6DSV32X_SDA_GPIO, LSM6DSV32X_SDA_PIN,
 				LSM6DSV32X_SCL_GPIO, LSM6DSV32X_SCL_PIN);
 		m_imu_type_internal = "LSM6DSV32X";
@@ -198,7 +225,11 @@ void imu_init(imu_config *set) {
 				BMI160_SPI_PORT_SCK, BMI160_SPI_PIN_SCK,
 				BMI160_SPI_PORT_MOSI, BMI160_SPI_PIN_MOSI,
 				BMI160_SPI_PORT_MISO, BMI160_SPI_PIN_MISO);
+#ifdef BMI160_HWSPI_DEV
+		m_imu_type_internal = "BMI160_SPI_HW";
+#else
 		m_imu_type_internal = "BMI160_SPI";
+#endif
 #endif
 	} else if (set->type == IMU_TYPE_EXTERNAL_MPU9X50) {
 		imu_init_mpu9x50(HW_I2C_SDA_PORT, HW_I2C_SDA_PIN,
@@ -285,6 +316,20 @@ void imu_init_bmi160_spi(stm32_gpio_t *nss_gpio, int nss_pin,
 		stm32_gpio_t *miso_gpio, int miso_pin) {
 	imu_stop();
 
+#ifdef BMI160_HWSPI_DEV
+	palSetPadMode(nss_gpio, nss_pin,
+			PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+	palSetPad(nss_gpio, nss_pin);
+	palSetPadMode(sck_gpio, sck_pin,
+			PAL_MODE_ALTERNATE(BMI160_HWSPI_AF) | PAL_STM32_OSPEED_HIGHEST);
+	palSetPadMode(mosi_gpio, mosi_pin,
+			PAL_MODE_ALTERNATE(BMI160_HWSPI_AF) | PAL_STM32_OSPEED_HIGHEST);
+	palSetPadMode(miso_gpio, miso_pin,
+			PAL_MODE_ALTERNATE(BMI160_HWSPI_AF) | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_PUDR_FLOATING);
+
+	spiStart(&BMI160_HWSPI_DEV, &m_bmi160_hw_spi_cfg);
+	m_bmi_hwspi = &BMI160_HWSPI_DEV;
+#else
 	m_spi_bb.nss_gpio = nss_gpio;
 	m_spi_bb.nss_pin = nss_pin;
 	m_spi_bb.sck_gpio = sck_gpio;
@@ -295,6 +340,7 @@ void imu_init_bmi160_spi(stm32_gpio_t *nss_gpio, int nss_pin,
 	m_spi_bb.miso_pin = miso_pin;
 
 	spi_bb_init(&m_spi_bb);
+#endif
 
 	m_bmi_state.sensor.id = 0;
 	m_bmi_state.sensor.interface = BMI160_SPI_INTF;
@@ -384,6 +430,55 @@ void imu_init_lsm6dsv32x_i2c(stm32_gpio_t *sda_gpio, int sda_pin,
 	m_imu_type_internal = "LSM6DSV32X";
 }
 
+bool imu_init_lsm6dsv32x_spi(stm32_gpio_t *nss_gpio, int nss_pin,
+		stm32_gpio_t *sck_gpio, int sck_pin, stm32_gpio_t *mosi_gpio, int mosi_pin,
+		stm32_gpio_t *miso_gpio, int miso_pin) {
+	imu_stop();
+
+#ifdef LSM6DSV32X_INT1_GPIO
+	palSetPadMode(LSM6DSV32X_INT1_GPIO, LSM6DSV32X_INT1_PIN, PAL_MODE_INPUT_PULLUP);
+#endif
+
+#ifdef LSM6DSV32X_HWSPI_DEV
+	palSetPadMode(nss_gpio, nss_pin,
+			PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+	palSetPad(nss_gpio, nss_pin);
+	palSetPadMode(sck_gpio, sck_pin,
+			PAL_MODE_ALTERNATE(LSM6DSV32X_HWSPI_AF) | PAL_STM32_OSPEED_HIGHEST);
+	palSetPadMode(mosi_gpio, mosi_pin,
+			PAL_MODE_ALTERNATE(LSM6DSV32X_HWSPI_AF) | PAL_STM32_OSPEED_HIGHEST);
+	palSetPadMode(miso_gpio, miso_pin,
+			PAL_MODE_ALTERNATE(LSM6DSV32X_HWSPI_AF) | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_PUDR_FLOATING);
+
+	spiStart(&LSM6DSV32X_HWSPI_DEV, &m_lsm6dsv32x_hw_spi_cfg);
+
+	lsm6dsv32x_vesc_set_rate_hz(1000);
+	lsm6dsv32x_vesc_set_filter(IMU_FILTER_MEDIUM);
+	bool res = lsm6dsv32x_vesc_init(NULL, NULL, &LSM6DSV32X_HWSPI_DEV, m_thd_work_area, sizeof(m_thd_work_area));
+#else
+	m_spi_bb.nss_gpio = nss_gpio;
+	m_spi_bb.nss_pin = nss_pin;
+	m_spi_bb.sck_gpio = sck_gpio;
+	m_spi_bb.sck_pin = sck_pin;
+	m_spi_bb.mosi_gpio = mosi_gpio;
+	m_spi_bb.mosi_pin = mosi_pin;
+	m_spi_bb.miso_gpio = miso_gpio;
+	m_spi_bb.miso_pin = miso_pin;
+
+	spi_bb_init(&m_spi_bb);
+
+	lsm6dsv32x_vesc_set_rate_hz(1000);
+	lsm6dsv32x_vesc_set_filter(IMU_FILTER_MEDIUM);
+	bool res = lsm6dsv32x_vesc_init(NULL, &m_spi_bb, NULL, m_thd_work_area, sizeof(m_thd_work_area));
+#endif
+
+	if (res) {
+		lsm6dsv32x_vesc_set_read_callback(imu_read_callback);
+	}
+
+	return res;
+}
+
 void imu_stop(void) {
 	mpu9150_stop();
 	icm20948_stop(&m_icm20948_state);
@@ -393,6 +488,13 @@ void imu_stop(void) {
 
 #ifdef LSM6DS3_HWSPI_DEV
 	spiStop(&LSM6DS3_HWSPI_DEV);
+#endif
+#ifdef LSM6DSV32X_HWSPI_DEV
+	spiStop(&LSM6DSV32X_HWSPI_DEV);
+#endif
+#ifdef BMI160_HWSPI_DEV
+	m_bmi_hwspi = NULL;
+	spiStop(&BMI160_HWSPI_DEV);
 #endif
 }
 
@@ -797,6 +899,20 @@ static int8_t user_spi_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uin
 
 	reg_addr = (reg_addr | BMI160_SPI_RD_MASK);
 
+#ifdef BMI160_HWSPI_DEV
+	if (m_bmi_hwspi) {
+		spiAcquireBus(m_bmi_hwspi);
+		spiSelect(m_bmi_hwspi);
+		spiPolledExchange(m_bmi_hwspi, reg_addr);
+		for (uint16_t i = 0; i < len; i++) {
+			data[i] = spiPolledExchange(m_bmi_hwspi, 0);
+		}
+		spiUnselect(m_bmi_hwspi);
+		spiReleaseBus(m_bmi_hwspi);
+		return rslt;
+	}
+#endif
+
 	chMtxLock(&m_spi_bb.mutex);
 	spi_bb_begin(&m_spi_bb);
 	spi_bb_exchange_8(&m_spi_bb, reg_addr);
@@ -815,9 +931,24 @@ static int8_t user_spi_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, ui
 	(void)dev_id;
 
 	int8_t rslt = BMI160_OK; /* Return 0 for Success, non-zero for failure */
+	reg_addr = (reg_addr & BMI160_SPI_WR_MASK);
+
+#ifdef BMI160_HWSPI_DEV
+	if (m_bmi_hwspi) {
+		spiAcquireBus(m_bmi_hwspi);
+		spiSelect(m_bmi_hwspi);
+		spiPolledExchange(m_bmi_hwspi, reg_addr);
+		for (uint16_t i = 0; i < len; i++) {
+			spiPolledExchange(m_bmi_hwspi, data[i]);
+		}
+		spiUnselect(m_bmi_hwspi);
+		spiReleaseBus(m_bmi_hwspi);
+		return rslt;
+	}
+#endif
+
 	chMtxLock(&m_spi_bb.mutex);
 	spi_bb_begin(&m_spi_bb);
-	reg_addr = (reg_addr & BMI160_SPI_WR_MASK);
 	spi_bb_exchange_8(&m_spi_bb, reg_addr);
 	spi_bb_delay();
 

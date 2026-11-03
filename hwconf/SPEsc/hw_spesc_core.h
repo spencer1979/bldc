@@ -64,18 +64,23 @@
     #define HW_SPESC_MK5_VERSION
     #define HW_MK5_NO_FAN_CONTROL      // MK5 移除 fan_control_thread，不使用 FAN_GPIO 和 FAN_PIN
     #define HW_MK5_NO_LIGHT_BACK       // MK5 不使用 LIGHT_BACK (PB5)
-    
+
+    /* Buzzer moved to PC9 (PB6 = PPM / servo TIM4) */
+    #undef EXT_BUZZER_GPIO
+    #undef EXT_BUZZER_PIN
+    #define EXT_BUZZER_GPIO GPIOC
+    #define EXT_BUZZER_PIN 9
+
     #ifdef HW_SPESC_MK5_BMI160
+        /* I2C: hw_spesc_mk5_bmi160_i2c.h (SPI pins live in hw_spesc_mk5_bmi160_spi.h) */
         #define BMI160_SDA_GPIO GPIOB
         #define BMI160_SDA_PIN 2
         #define BMI160_SCL_GPIO GPIOA
         #define BMI160_SCL_PIN 15
     #elif defined(HW_SPESC_MK5_LSM6DSV32X)
-        #define LSM6DSV32X_SDA_GPIO GPIOB
-        #define LSM6DSV32X_SDA_PIN 2
-        #define LSM6DSV32X_SCL_GPIO GPIOA
-        #define LSM6DSV32X_SCL_PIN 15
+        /* Pins: hw_spesc_mk5_lsm6dsv32x_i2c.h or hw_spesc_mk5_lsm6dsv32x_spi.h */
     #elif defined(HW_SPESC_MK5_LSM6DS3)
+        /* I2C: hw_spesc_mk5_lsm6ds3_i2c.h */
         #define LSM6DS3_SDA_GPIO GPIOB
         #define LSM6DS3_SDA_PIN 2
         #define LSM6DS3_SCL_GPIO GPIOA
@@ -94,6 +99,12 @@
 #define EXTERNAL_DCDC_GPIO GPIOC
 #define EXTERNAL_DCDC_PIN 12
 
+#ifndef EXT_BUZZER_GPIO
+// External buzzer (MK4: PB6; high = on, low = off; shares PPM/servo TIM4 CH1)
+#define EXT_BUZZER_GPIO GPIOB
+#define EXT_BUZZER_PIN 6
+#endif
+
 // Macros
 #define LED_GREEN_ON() palSetPad(GPIOB, 0)
 #define LED_GREEN_OFF() palClearPad(GPIOB, 0)
@@ -101,8 +112,8 @@
 #define LED_RED_OFF() palClearPad(GPIOB, 1)
 
 #define HAS_EXT_BUZZER 1
-#define EXT_BUZZER_ON() palSetPad(HW_ICU_GPIO, HW_ICU_PIN) // Servo pin
-#define EXT_BUZZER_OFF() palClearPad(HW_ICU_GPIO, HW_ICU_PIN)
+#define EXT_BUZZER_ON() palSetPad(EXT_BUZZER_GPIO, EXT_BUZZER_PIN)
+#define EXT_BUZZER_OFF() palClearPad(EXT_BUZZER_GPIO, EXT_BUZZER_PIN)
 
 // Enable J17 J16 COB LED
 #define LIGHT_FRONT_ON() palSetPad(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN)
@@ -164,8 +175,15 @@
 // ADC macros and settings
 
 // Component parameters (can be overridden)
+#ifdef HW_SPESC_MK5
+// V_REG = MCU VDDA (ADC reference). Measure at the chip 3.3 V net.
+#ifndef V_REG
+#define V_REG 3.34
+#endif
+#else
 #ifndef V_REG
 #define V_REG 3.3
+#endif
 #endif
 
 #define VIN_OFFSET -0.33
@@ -183,7 +201,24 @@
 #endif
 
 #ifndef CURRENT_SHUNT_RES
-#define CURRENT_SHUNT_RES 0.0003 //  Max current +/-(1.6V/0.3m ohm) /20= 266 A Max  , we use 265A
+#define CURRENT_SHUNT_RES 0.0003
+#endif
+
+#ifdef HW_SPESC_MK5
+// Op-amp output at I=0 (TL431 network -> ~1.641 V at sense output)
+#ifndef CURRENT_SENSE_REF_V
+#define CURRENT_SENSE_REF_V 1.641f
+#endif
+
+#ifndef MCCONF_FOC_OFFSETS_CURRENT_0
+#define MCCONF_FOC_OFFSETS_CURRENT_0 (4095.0f - (4095.0f * (CURRENT_SENSE_REF_V / V_REG)))
+#endif
+#ifndef MCCONF_FOC_OFFSETS_CURRENT_1
+#define MCCONF_FOC_OFFSETS_CURRENT_1 MCCONF_FOC_OFFSETS_CURRENT_0
+#endif
+#ifndef MCCONF_FOC_OFFSETS_CURRENT_2
+#define MCCONF_FOC_OFFSETS_CURRENT_2 MCCONF_FOC_OFFSETS_CURRENT_0
+#endif
 #endif
 
 // Input voltage
@@ -276,7 +311,8 @@
 #define HW_ENC_TIM_ISR_CH TIM3_IRQn
 #define HW_ENC_TIM_ISR_VEC TIM3_IRQHandler
 
-// SPI pins
+// SPI pins (VESC SPI encoders on PA4–PA7). MK5: no HW_SPI_DEV (encoders off).
+#ifndef HW_SPESC_MK5
 #define HW_SPI_DEV SPID1
 #define HW_SPI_GPIO_AF GPIO_AF_SPI1
 #define HW_SPI_PORT_NSS GPIOA
@@ -287,6 +323,17 @@
 #define HW_SPI_PIN_MOSI 7
 #define HW_SPI_PORT_MISO GPIOA
 #define HW_SPI_PIN_MISO 6
+#else
+/* Compile-only stubs for hw.h NRF macros; do not use SPI encoder apps on MK5 */
+#define HW_SPI_PORT_NSS GPIOA
+#define HW_SPI_PIN_NSS 4
+#define HW_SPI_PORT_SCK GPIOA
+#define HW_SPI_PIN_SCK 5
+#define HW_SPI_PORT_MOSI GPIOA
+#define HW_SPI_PIN_MOSI 7
+#define HW_SPI_PORT_MISO GPIOA
+#define HW_SPI_PIN_MISO 6
+#endif
 
 // Permanent UART Peripheral (for NRF51)
 #define HW_UART_P_BAUD 115200
