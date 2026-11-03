@@ -30,7 +30,7 @@
 static volatile bool i2c_running = false;
 
 // fan control thread
-#ifndef HW_SPESC_MK5
+#ifndef HW_MK5_NO_FAN_CONTROL
 static THD_WORKING_AREA(fan_control_thread_wa, 128);
 static THD_FUNCTION(fan_control_thread, arg);
 #endif
@@ -57,10 +57,10 @@ void hw_init_gpio(void)
                   PAL_MODE_OUTPUT_PUSHPULL |
                       PAL_STM32_OSPEED_HIGHEST);
 
-    // External Buzzer (using servo pin!)
-    palSetPadMode(HW_ICU_GPIO, HW_ICU_PIN,
+    palSetPadMode(EXT_BUZZER_GPIO, EXT_BUZZER_PIN,
                   PAL_MODE_OUTPUT_PUSHPULL |
                       PAL_STM32_OSPEED_HIGHEST);
+    EXT_BUZZER_OFF();
 
 #ifndef HW_MK5_NO_LIGHT_BACK
     palSetPadMode(LIGHT_BACK_GPIO, LIGHT_BACK_PIN,

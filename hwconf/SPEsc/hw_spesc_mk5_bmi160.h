@@ -25,6 +25,9 @@
 #define HW_SPESC_MK5
 #define HW_SPESC_MK5_BMI160
 
+// 1 = 5 V fan on PD2 (fan_control_thread), 0 = disable fan GPIO/thread
+#define HW_MK5_USE_FAN_CONTROL		1
+
 #include "hw_spesc_core.h"
 
 #endif /* HW_SPESC_MK5_BMI160_H_ */

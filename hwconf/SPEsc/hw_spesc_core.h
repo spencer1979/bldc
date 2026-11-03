@@ -62,9 +62,18 @@
 #ifdef HW_SPESC_MK5
     // MK5 版本特性定義
     #define HW_SPESC_MK5_VERSION
-    #define HW_MK5_NO_FAN_CONTROL      // MK5 移除 fan_control_thread，不使用 FAN_GPIO 和 FAN_PIN
     #define HW_MK5_NO_LIGHT_BACK       // MK5 不使用 LIGHT_BACK (PB5)
-    
+
+#if defined(HW_MK5_USE_FAN_CONTROL) && (HW_MK5_USE_FAN_CONTROL == 0)
+#define HW_MK5_NO_FAN_CONTROL
+#endif
+
+    /* Buzzer on PB6 (TIM4 PPM / servo), not PC9 */
+    #undef EXT_BUZZER_GPIO
+    #undef EXT_BUZZER_PIN
+    #define EXT_BUZZER_GPIO GPIOB
+    #define EXT_BUZZER_PIN 6
+
     #ifdef HW_SPESC_MK5_BMI160
         #define BMI160_SDA_GPIO GPIOB
         #define BMI160_SDA_PIN 2
@@ -94,6 +103,11 @@
 #define EXTERNAL_DCDC_GPIO GPIOC
 #define EXTERNAL_DCDC_PIN 12
 
+#ifndef EXT_BUZZER_GPIO
+// External buzzer (MK4: PB6; high = on, low = off; shares PPM/servo TIM4 CH1)
+#define EXT_BUZZER_GPIO GPIOB
+#define EXT_BUZZER_PIN 6
+#endif
 // Macros
 #define LED_GREEN_ON() palSetPad(GPIOB, 0)
 #define LED_GREEN_OFF() palClearPad(GPIOB, 0)
@@ -101,8 +115,8 @@
 #define LED_RED_OFF() palClearPad(GPIOB, 1)
 
 #define HAS_EXT_BUZZER 1
-#define EXT_BUZZER_ON() palSetPad(HW_ICU_GPIO, HW_ICU_PIN) // Servo pin
-#define EXT_BUZZER_OFF() palClearPad(HW_ICU_GPIO, HW_ICU_PIN)
+#define EXT_BUZZER_ON() palSetPad(EXT_BUZZER_GPIO, EXT_BUZZER_PIN) // Servo pin
+#define EXT_BUZZER_OFF() palClearPad(EXT_BUZZER_GPIO, EXT_BUZZER_PIN)
 
 // Enable J17 J16 COB LED
 #define LIGHT_FRONT_ON() palSetPad(LIGHT_FRONT_GPIO, LIGHT_FRONT_PIN)
@@ -164,14 +178,26 @@
 // ADC macros and settings
 
 // Component parameters (can be overridden)
+#ifdef HW_SPESC_MK5
+#ifndef V_REG
+#define V_REG 3.34
+#endif
+#else
 #ifndef V_REG
 #define V_REG 3.3
+#endif
 #endif
 
 #define VIN_OFFSET -0.33
 
+#ifdef HW_SPESC_MK5
+#ifndef VIN_R1
+#define VIN_R1 82100.0 // 82.1k
+#endif
+#else
 #ifndef VIN_R1
 #define VIN_R1 68000.0
+#endif
 #endif
 
 #ifndef VIN_R2
@@ -184,6 +210,23 @@
 
 #ifndef CURRENT_SHUNT_RES
 #define CURRENT_SHUNT_RES 0.0003 //  Max current +/-(1.6V/0.3m ohm) /20= 266 A Max  , we use 265A
+#endif
+
+#ifdef HW_SPESC_MK5
+// TL431 reference at current-sense output at I = 0 (~1.642 V). V_REG above is MCU VDDA for ADC scaling.
+#ifndef CURRENT_SENSE_REF_V
+#define CURRENT_SENSE_REF_V 1.642f
+#endif
+
+#ifndef MCCONF_FOC_OFFSETS_CURRENT_0
+#define MCCONF_FOC_OFFSETS_CURRENT_0 (4095.0f - (4095.0f * (CURRENT_SENSE_REF_V / V_REG)))
+#endif
+#ifndef MCCONF_FOC_OFFSETS_CURRENT_1
+#define MCCONF_FOC_OFFSETS_CURRENT_1 MCCONF_FOC_OFFSETS_CURRENT_0
+#endif
+#ifndef MCCONF_FOC_OFFSETS_CURRENT_2
+#define MCCONF_FOC_OFFSETS_CURRENT_2 MCCONF_FOC_OFFSETS_CURRENT_0
+#endif
 #endif
 
 // Input voltage
