@@ -38,6 +38,7 @@
 /*
  * Defines
  */
+#ifndef GD32F405_COMPAT
 #define FLASH_SECTORS							12
 #define BOOTLOADER_BASE							11
 #define APP_BASE								0
@@ -49,6 +50,38 @@
 #define LISP_CONST_BASE							8
 #define QMLUI_MAX_SIZE							(1024 * 128 - 8)
 #define LISP_MAX_SIZE							(1024 * 128 - 8)
+#define NVM_BASE								11
+#else
+/*
+ * GigaDevice GD32F405xK, 3 MB flash (see ld_gd32f405_3m.ld and
+ * documentation/gd32f405_port.md).
+ *
+ * Bank0 (sectors 0-11, 1 MB) has the same layout as the STM32F405 and holds
+ * the whole application image: s0 vectors, s1-s2 EEPROM emulation, s3-s7 fast
+ * code (the GD32 zero-wait code area ends at 0x08080000) and s8-s11 slow code.
+ * Bank1 (sectors 12-27, 2 MB) holds everything that is not part of the image.
+ *
+ * Indices below are indices into flash_addr[] / flash_sector[], which are the
+ * same as the GD32 logical sector numbers.
+ *
+ * MATCHING BOOTLOADER REQUIRED: the stock bldc-bootloader (at 0x080E0000,
+ * staging at 0x08080000, 384 KB) is NOT compatible with this layout. A GD32
+ * build of the bootloader must live at 0x08100000 (s12), read the new image
+ * from 0x08200000 (s24, max 1 MB) and erase/write app sectors 0-11.
+ */
+#define FLASH_SECTORS							28
+#define BOOTLOADER_BASE							12 // s12-s15, 64 KB
+#define APP_BASE								0
+#define NEW_APP_BASE							24 // s24-s27, 4 x 256 KB
+#define NEW_APP_SECTORS							4
+#define APP_MAX_SIZE							(1024 * 1024 - 8) // Note that the bootloader needs 8 extra bytes
+#define NVM_BASE								17
+#define QMLUI_BASE								18
+#define LISP_BASE								19
+#define LISP_CONST_BASE							20
+#define QMLUI_MAX_SIZE							(1024 * 128 - 8)
+#define LISP_MAX_SIZE							(1024 * 128 - 8)
+#endif
 
 // Base address of the Flash sectors
 #define ADDR_FLASH_SECTOR_0    					((uint32_t)0x08000000) // Base @ of Sector 0, 16 Kbytes
@@ -63,6 +96,43 @@
 #define ADDR_FLASH_SECTOR_9 				    ((uint32_t)0x080A0000) // Base @ of Sector 9, 128 Kbytes
 #define ADDR_FLASH_SECTOR_10				    ((uint32_t)0x080C0000) // Base @ of Sector 10, 128 Kbytes
 #define ADDR_FLASH_SECTOR_11				    ((uint32_t)0x080E0000) // Base @ of Sector 11, 128 Kbytes
+
+#ifdef GD32F405_COMPAT
+// GD32F405xK bank1
+#define ADDR_FLASH_SECTOR_12				    ((uint32_t)0x08100000) // 16 Kbytes
+#define ADDR_FLASH_SECTOR_13				    ((uint32_t)0x08104000) // 16 Kbytes
+#define ADDR_FLASH_SECTOR_14				    ((uint32_t)0x08108000) // 16 Kbytes
+#define ADDR_FLASH_SECTOR_15				    ((uint32_t)0x0810C000) // 16 Kbytes
+#define ADDR_FLASH_SECTOR_16				    ((uint32_t)0x08110000) // 64 Kbytes
+#define ADDR_FLASH_SECTOR_17				    ((uint32_t)0x08120000) // 128 Kbytes
+#define ADDR_FLASH_SECTOR_18				    ((uint32_t)0x08140000) // 128 Kbytes
+#define ADDR_FLASH_SECTOR_19				    ((uint32_t)0x08160000) // 128 Kbytes
+#define ADDR_FLASH_SECTOR_20				    ((uint32_t)0x08180000) // 128 Kbytes
+#define ADDR_FLASH_SECTOR_21				    ((uint32_t)0x081A0000) // 128 Kbytes
+#define ADDR_FLASH_SECTOR_22				    ((uint32_t)0x081C0000) // 128 Kbytes
+#define ADDR_FLASH_SECTOR_23				    ((uint32_t)0x081E0000) // 128 Kbytes
+#define ADDR_FLASH_SECTOR_24				    ((uint32_t)0x08200000) // 256 Kbytes
+#define ADDR_FLASH_SECTOR_25				    ((uint32_t)0x08240000) // 256 Kbytes
+#define ADDR_FLASH_SECTOR_26				    ((uint32_t)0x08280000) // 256 Kbytes
+#define ADDR_FLASH_SECTOR_27				    ((uint32_t)0x082C0000) // 256 Kbytes
+
+/*
+ * Values for the SN field (bits 7:3) of FMC_CTL (= FLASH->CR). The GD32 SN
+ * encoding is not linear: sectors 12-23 use SN 16-27, which is the same as
+ * the STM32F42x FLASH_Sector_12..23 definitions in the StdPeriph library, but
+ * sectors 24-27 use SN 12-15, which have no StdPeriph definition.
+ * FLASH_EraseSector() clears bits 7:3 with SECTOR_MASK (0xFFFFFF07), so these
+ * values can be passed to it directly.
+ */
+#define GD32_FLASH_Sector_24					((uint16_t)(12 << 3))
+#define GD32_FLASH_Sector_25					((uint16_t)(13 << 3))
+#define GD32_FLASH_Sector_26					((uint16_t)(14 << 3))
+#define GD32_FLASH_Sector_27					((uint16_t)(15 << 3))
+
+#define BOOTLOADER_ADDRESS						ADDR_FLASH_SECTOR_12
+#else
+#define BOOTLOADER_ADDRESS						ADDR_FLASH_SECTOR_11
+#endif
 
 #define VECTOR_TABLE_ADDRESS					((uint32_t*)ADDR_FLASH_SECTOR_0)
 #define VECTOR_TABLE_SIZE						((uint32_t)(ADDR_FLASH_SECTOR_1 - ADDR_FLASH_SECTOR_0))
@@ -112,7 +182,25 @@ static const uint32_t flash_addr[FLASH_SECTORS] = {
 		ADDR_FLASH_SECTOR_8,
 		ADDR_FLASH_SECTOR_9,
 		ADDR_FLASH_SECTOR_10,
-		ADDR_FLASH_SECTOR_11
+		ADDR_FLASH_SECTOR_11,
+#ifdef GD32F405_COMPAT
+		ADDR_FLASH_SECTOR_12,
+		ADDR_FLASH_SECTOR_13,
+		ADDR_FLASH_SECTOR_14,
+		ADDR_FLASH_SECTOR_15,
+		ADDR_FLASH_SECTOR_16,
+		ADDR_FLASH_SECTOR_17,
+		ADDR_FLASH_SECTOR_18,
+		ADDR_FLASH_SECTOR_19,
+		ADDR_FLASH_SECTOR_20,
+		ADDR_FLASH_SECTOR_21,
+		ADDR_FLASH_SECTOR_22,
+		ADDR_FLASH_SECTOR_23,
+		ADDR_FLASH_SECTOR_24,
+		ADDR_FLASH_SECTOR_25,
+		ADDR_FLASH_SECTOR_26,
+		ADDR_FLASH_SECTOR_27,
+#endif
 };
 static const uint16_t flash_sector[FLASH_SECTORS] = {
 		FLASH_Sector_0,
@@ -126,7 +214,25 @@ static const uint16_t flash_sector[FLASH_SECTORS] = {
 		FLASH_Sector_8,
 		FLASH_Sector_9,
 		FLASH_Sector_10,
-		FLASH_Sector_11
+		FLASH_Sector_11,
+#ifdef GD32F405_COMPAT
+		FLASH_Sector_12, // SN 16
+		FLASH_Sector_13,
+		FLASH_Sector_14,
+		FLASH_Sector_15,
+		FLASH_Sector_16,
+		FLASH_Sector_17,
+		FLASH_Sector_18,
+		FLASH_Sector_19,
+		FLASH_Sector_20,
+		FLASH_Sector_21,
+		FLASH_Sector_22,
+		FLASH_Sector_23, // SN 27
+		GD32_FLASH_Sector_24, // SN 12
+		GD32_FLASH_Sector_25,
+		GD32_FLASH_Sector_26,
+		GD32_FLASH_Sector_27, // SN 15
+#endif
 };
 
 uint16_t flash_helper_erase_new_app(uint32_t new_app_size) {
@@ -174,7 +280,18 @@ uint16_t flash_helper_erase_new_app(uint32_t new_app_size) {
 }
 
 uint16_t flash_helper_erase_bootloader(void) {
+#ifdef GD32F405_COMPAT
+	/*
+	 * VESC Tool writes a bootloader to NEW_APP_BASE + 384 KB (hardcoded for
+	 * HW_TYPE_VESC), which matches the STM32 layout only. In the GD32 layout
+	 * that would erase the bootloader at 0x08100000 and write the new one into
+	 * the staging area, leaving the device without a bootloader. Refuse, so
+	 * that the upload fails cleanly. Flash the GD32 bootloader with SWD.
+	 */
+	return FLASH_ERROR_OPERATION;
+#else
 	return erase_sector(flash_sector[BOOTLOADER_BASE]);
+#endif
 }
 
 uint16_t flash_helper_write_new_app_data(uint32_t offset, uint8_t *data, uint32_t len) {
@@ -270,11 +387,24 @@ void flash_helper_jump_to_bootloader(void) {
 
 	chSysDisable();
 
+#ifdef GD32F405_COMPAT
+	// GD32F4xx: switching from the PLL back to IRC16M at full speed can make
+	// the clocks drop out (GigaDevice migration note, section 5.2). The
+	// bootloader re-initializes the clocks, so leave the PLL safely here:
+	// divide HCLK by 4, wait, then select HSI.
+	RCC->CFGR |= RCC_CFGR_HPRE_DIV4;
+	for (volatile uint32_t i = 0xFFFF;i > 0;i--) {
+		__NOP();
+	}
+	RCC->CFGR &= ~RCC_CFGR_SW; // SW = HSI
+	while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI) {}
+#endif
+
 	pFunction jump_to_bootloader;
 
 	// Variable that will be loaded with the start address of the application
 	volatile uint32_t* jump_address;
-	const volatile uint32_t* bootloader_address = (volatile uint32_t*)0x080E0000;
+	const volatile uint32_t* bootloader_address = (volatile uint32_t*)BOOTLOADER_ADDRESS;
 
 	// Get jump address from application vector table
 	jump_address = (volatile uint32_t*) bootloader_address[1];
@@ -489,7 +619,8 @@ static void qmlui_check(int ind) {
 	code_checks[ind].check_done = true;
 }
 
-#define VESC_IF_NVM_REGION_SIZE	(ADDR_FLASH_SECTOR_11 - ADDR_FLASH_SECTOR_10)
+#define VESC_IF_NVM_REGION_SIZE	(1024 * 128)
+#define VESC_IF_NVM_ADDRESS		(flash_addr[NVM_BASE])
 
 /**
   * @brief  Reads len bytes to v from nvm at address
@@ -503,7 +634,7 @@ bool flash_helper_read_nvm(uint8_t *v, unsigned int len, unsigned int address) {
 		return false;
 	}
 
-	memcpy(v, (uint8_t*)(ADDR_FLASH_SECTOR_11 + address), len);
+	memcpy(v, (uint8_t*)(VESC_IF_NVM_ADDRESS + address), len);
 
 	return true;
 }
@@ -520,7 +651,7 @@ bool flash_helper_write_nvm(uint8_t *v, unsigned int len, unsigned int address) 
 		return false;
 	}
 
-	uint16_t res = write_data(ADDR_FLASH_SECTOR_11 + address, v, len);
+	uint16_t res = write_data(VESC_IF_NVM_ADDRESS + address, v, len);
 
 	return (res == FLASH_COMPLETE);
 }
@@ -530,5 +661,5 @@ bool flash_helper_write_nvm(uint8_t *v, unsigned int len, unsigned int address) 
   * @retval Boolean indicating success or failure
   */
 bool flash_helper_wipe_nvm(void) {
-	return (erase_sector(flash_sector[11]) == FLASH_COMPLETE);
+	return (erase_sector(flash_sector[NVM_BASE]) == FLASH_COMPLETE);
 }
