@@ -124,6 +124,15 @@ endif
 # Define linker script file here
 LDSCRIPT= ld_eeprom_emu.ld
 
+# GigaDevice GD32F405xK (pin compatible with STM32F405RG, 3 MB flash).
+# Set automatically by the top level Makefile for boards named *_gd32.
+# Uses the 3 MB flash layout (fast 512 KB code area + slow data area) and
+# enables the GD32 workarounds guarded by GD32F405_COMPAT in the sources.
+ifeq ($(MCU_GD32F405),1)
+  LDSCRIPT = ld_gd32f405_3m.ld
+  USE_OPT += -DGD32F405_COMPAT
+endif
+
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(STARTUPSRC) \
