@@ -162,6 +162,21 @@ void stm32_clock_init(void) {
   while (!(RCC->CR & RCC_CR_HSIRDY))
     ;                                       /* Wait until HSI is stable.    */
 
+#if defined(GD32F405_COMPAT)
+  /* GD32F4xx: switching SYSCLK from a high frequency source (PLL) back to
+     IRC16M can make the clocks drop out and the CPU run away (GigaDevice
+     STM32F4xx->GD32F4xx migration note, section 5.2, typically seen when a
+     bootloader jumps to the application). Divide HCLK by 4 and wait before
+     the switch. Only needed when not already running from HSI, i.e. not
+     after a normal reset.*/
+  if ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI) {
+    volatile uint32_t gd32_delay;
+    RCC->CFGR |= RCC_CFGR_HPRE_DIV4;
+    for (gd32_delay = 0xFFFF; gd32_delay > 0; gd32_delay--)
+      ;
+  }
+#endif
+
   /* HSI is selected as new source without touching the other fields in
      CFGR. Clearing the register has to be postponed after HSI is the
      new source.*/

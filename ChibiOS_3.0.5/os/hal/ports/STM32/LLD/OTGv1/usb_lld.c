@@ -112,10 +112,27 @@ static const stm32_otg_params_t hsparams = {
 /* Driver local functions.                                                   */
 /*===========================================================================*/
 
+#if defined(GD32F405_COMPAT)
+/*
+ * GD32F4xx workaround: after GCCFG (PHY power up) is written the GD32 OTG
+ * core needs much more time before the core soft reset than the STM32,
+ * otherwise CDC enumeration fails. ~25M cycles (~150 ms @ 168 MHz) is the
+ * value reported to work on the ChibiOS forum (topic 6008). This runs once
+ * from usbStart() during init, before the IWDG is started.
+ */
+#if !defined(GD32_OTG_CORE_RESET_DELAY_CYCLES)
+#define GD32_OTG_CORE_RESET_DELAY_CYCLES  25000000U
+#endif
+#endif
+
 static void otg_core_reset(USBDriver *usbp) {
   stm32_otg_t *otgp = usbp->otg;
 
   osalSysPolledDelayX(32);
+
+#if defined(GD32F405_COMPAT)
+  osalSysPolledDelayX(GD32_OTG_CORE_RESET_DELAY_CYCLES);
+#endif
 
   /* Core reset and delay of at least 3 PHY cycles.*/
   otgp->GRSTCTL = GRSTCTL_CSRST;
@@ -930,8 +947,10 @@ void usb_lld_reset(USBDriver *usbp) {
   unsigned i;
   stm32_otg_t *otgp = usbp->otg;
 
+#if !defined(GD32F405_COMPAT)
   /* Flush the Tx FIFO.*/
   otg_txfifo_flush(usbp, 0);
+#endif
 
   /* Endpoint interrupts all disabled and cleared.*/
   otgp->DIEPEMPMSK = 0;
@@ -950,6 +969,15 @@ void usb_lld_reset(USBDriver *usbp) {
 
   /* Receive FIFO size initialization, the address is always zero.*/
   otgp->GRXFSIZ = usbp->otgparams->rx_fifo_size;
+#if defined(GD32F405_COMPAT)
+  /* GD32F4xx: the FIFOs must be sized before they are flushed (ST order is
+     flush first, then configure). Size the EP0 TX FIFO here, before the
+     flushes, instead of at the end of this function.*/
+  otgp->DIEPTXF0 = DIEPTXF_INEPTXFD(ep0config.in_maxsize / 4) |
+                   DIEPTXF_INEPTXSA(otg_ram_alloc(usbp,
+                                                  ep0config.in_maxsize / 4));
+  otg_txfifo_flush(usbp, 0);
+#endif
   otg_rxfifo_flush(usbp);
 
   /* Resets the device address to zero.*/
@@ -968,9 +996,11 @@ void usb_lld_reset(USBDriver *usbp) {
   otgp->ie[0].DIEPTSIZ = 0;
   otgp->ie[0].DIEPCTL = DIEPCTL_SD0PID | DIEPCTL_USBAEP | DIEPCTL_EPTYP_CTRL |
                         DIEPCTL_TXFNUM(0) | DIEPCTL_MPSIZ(ep0config.in_maxsize);
+#if !defined(GD32F405_COMPAT)
   otgp->DIEPTXF0 = DIEPTXF_INEPTXFD(ep0config.in_maxsize / 4) |
                    DIEPTXF_INEPTXSA(otg_ram_alloc(usbp,
                                                   ep0config.in_maxsize / 4));
+#endif
 }
 
 /**
