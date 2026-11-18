@@ -38,7 +38,13 @@
 /*
  * Defines
  */
-#ifndef GD32F405_COMPAT
+#ifndef GD32F405_FLASH_3M
+/*
+ * STM32F405 1 MB layout. Also used for the GigaDevice GD32F405RG (1 MB,
+ * GD32F405_COMPAT without GD32F405_FLASH_3M): the application (s0-s7) is
+ * exactly the 512 KB zero wait state code area, s8-s11 (staging, LispBM,
+ * QML, bootloader) are in the data area.
+ */
 #define FLASH_SECTORS							12
 #define BOOTLOADER_BASE							11
 #define APP_BASE								0
@@ -97,7 +103,7 @@
 #define ADDR_FLASH_SECTOR_10				    ((uint32_t)0x080C0000) // Base @ of Sector 10, 128 Kbytes
 #define ADDR_FLASH_SECTOR_11				    ((uint32_t)0x080E0000) // Base @ of Sector 11, 128 Kbytes
 
-#ifdef GD32F405_COMPAT
+#ifdef GD32F405_FLASH_3M
 // GD32F405xK bank1
 #define ADDR_FLASH_SECTOR_12				    ((uint32_t)0x08100000) // 16 Kbytes
 #define ADDR_FLASH_SECTOR_13				    ((uint32_t)0x08104000) // 16 Kbytes
@@ -183,7 +189,7 @@ static const uint32_t flash_addr[FLASH_SECTORS] = {
 		ADDR_FLASH_SECTOR_9,
 		ADDR_FLASH_SECTOR_10,
 		ADDR_FLASH_SECTOR_11,
-#ifdef GD32F405_COMPAT
+#ifdef GD32F405_FLASH_3M
 		ADDR_FLASH_SECTOR_12,
 		ADDR_FLASH_SECTOR_13,
 		ADDR_FLASH_SECTOR_14,
@@ -215,7 +221,7 @@ static const uint16_t flash_sector[FLASH_SECTORS] = {
 		FLASH_Sector_9,
 		FLASH_Sector_10,
 		FLASH_Sector_11,
-#ifdef GD32F405_COMPAT
+#ifdef GD32F405_FLASH_3M
 		FLASH_Sector_12, // SN 16
 		FLASH_Sector_13,
 		FLASH_Sector_14,
@@ -280,7 +286,7 @@ uint16_t flash_helper_erase_new_app(uint32_t new_app_size) {
 }
 
 uint16_t flash_helper_erase_bootloader(void) {
-#ifdef GD32F405_COMPAT
+#ifdef GD32F405_FLASH_3M
 	/*
 	 * VESC Tool writes a bootloader to NEW_APP_BASE + 384 KB (hardcoded for
 	 * HW_TYPE_VESC), which matches the STM32 layout only. In the GD32 layout

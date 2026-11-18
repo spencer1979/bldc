@@ -130,6 +130,16 @@ LDSCRIPT= ld_eeprom_emu.ld
 # enables the GD32 workarounds guarded by GD32F405_COMPAT in the sources.
 ifeq ($(MCU_GD32F405),1)
   LDSCRIPT = ld_gd32f405_3m.ld
+  USE_OPT += -DGD32F405_COMPAT -DGD32F405_FLASH_3M
+endif
+
+# GigaDevice GD32F405RG (1 MB flash: 512 KB code area + 512 KB data area).
+# Set automatically by the top level Makefile for boards named *_gd32_1m.
+# Keeps the STM32F405 flash layout and linker script (the image in s0-s7 is
+# exactly the zero wait state code area, the stock bootloader location and
+# the VESC Tool update flow stay the same) and only enables the GD32
+# workarounds.
+ifeq ($(MCU_GD32F405_1M),1)
   USE_OPT += -DGD32F405_COMPAT
 endif
 

@@ -1,23 +1,42 @@
-# VESC on GigaDevice GD32F405RKT6 (3 MB flash)
+# VESC on GigaDevice GD32F405RKT6 (3 MB) and GD32F405RGT6 (1 MB)
 
-Experimental port for boards where the STM32F405RGT6 is replaced by the pin
-compatible GD32F405RKT6 to get more flash. **Nothing here has been verified on
-hardware yet.**
+Experimental port for boards where the STM32F405RGT6 is replaced by a pin
+compatible GD32F405 (LQFP64). **Nothing here has been verified on hardware
+yet.**
+
+| Variant | Flash (GD32F405 DS Rev2.8 Table 2-1) | Firmware target | HW_NAME | Bootloader build | Bootloader address |
+|---|---|---|---|---|---|
+| STM32F405RGT6 | 1 MB | `fw_60` | `60` | `make build_args='-DHW_VER=60'` | 0x080E0000 |
+| GD32F405RKT6 | 512 KB code area + 2560 KB data area | `fw_60_gd32` | `60_GD32` | `make GD32=1 build_args='-DHW_VER=60'` | 0x08100000 |
+| GD32F405RGT6 | 512 KB code area + 512 KB data area | `fw_60_gd32_1m` | `60_GD32_1M` | `make GD32_1M=1 build_args='-DHW_VER=60'` | 0x080E0000 |
+
+Only the code area runs without wait states (DS 3.2: "executing instructions
+without waiting is up to 512K bytes ... A long delay when CPU fetches the
+instructions out of the range").
 
 ## Building
 
 ```
-make fw_60_gd32          # VESC 6 (hw_60) pinout on a GD32F405RKT6
+make fw_60_gd32          # VESC 6 (hw_60) pinout on a GD32F405RKT6 (3 MB layout)
+make fw_60_gd32_1m       # VESC 6 (hw_60) pinout on a GD32F405RGT6 (1 MB, STM32 layout)
 ```
 
-Any board name that ends in `_gd32` is built for the GD32: the top level
-`Makefile` passes `MCU_GD32F405=1` to `make/fw.mk`, which selects
-`ld_gd32f405_3m.ld` and defines `GD32F405_COMPAT`. All GD32 specific code is
-guarded by `GD32F405_COMPAT`, so the STM32 targets build exactly as before.
-To add another board: copy `hwconf/trampa/vesc6/hw_60_gd32.h`, include the
-other board's header and change `HW_NAME`.
+* Board names ending in `_gd32`: the top level `Makefile` passes
+  `MCU_GD32F405=1` to `make/fw.mk`, which selects `ld_gd32f405_3m.ld` and
+  defines `GD32F405_COMPAT` and `GD32F405_FLASH_3M`.
+* Board names ending in `_gd32_1m`: `MCU_GD32F405_1M=1`, the STM32 linker
+  script `ld_eeprom_emu.ld` is kept and only `GD32F405_COMPAT` is defined.
 
-## Flash map
+`GD32F405_COMPAT` guards the hardware workarounds (clock switch, flash wait
+state register, ADC clock/calibration, USB OTG), `GD32F405_FLASH_3M` guards
+everything that depends on the 3 MB layout (`flash_helper.c` sector table,
+bootloader address, `utils_is_func_valid()`, UAVCAN staging address,
+`GD32_FAST_FUNC`). The STM32 targets build bit-identically (checked for
+`fw_60` with a fixed git hash). To add another board: copy
+`hwconf/trampa/vesc6/hw_60_gd32.h` or `hw_60_gd32_1m.h`, include the other
+board's header and change `HW_NAME`.
+
+## Flash map, GD32F405RKT6 (3 MB, `fw_*_gd32`)
 
 GD32F405xK: only the first 512 KB is the zero-wait *code area*; the rest is
 the *data area* (executable, but slow). Bank0 (1 MB) has the STM32F405 sector
@@ -47,7 +66,67 @@ GD32 erase sector numbers (FMC_CTL SN) are not linear: s12-s23 use SN 16-27
 (same as the StdPeriph `FLASH_Sector_12..23`), s24-s27 use SN 12-15
 (`GD32_FLASH_Sector_24..27` in `flash_helper.c`).
 
-## What goes where
+## Flash map, GD32F405RGT6 (1 MB, `fw_*_gd32_1m`)
+
+Same sector layout and same use as the STM32F405 (UM Rev3.0 Table 2-1: bank0
+sectors 0-11 like the STM32F405; the dual-bank option DBS for 1 MB parts is
+only valid for GD32F450/F470, UM 2.4.x FMC_OBCTL0):
+
+| Address    | Sectors | Size  | Use                                       | Speed |
+|------------|---------|-------|-------------------------------------------|-------|
+| 0x08000000 | 0       | 16K   | vectors + `.text2`                        | fast  |
+| 0x08004000 | 1-2     | 32K   | EEPROM emulation (config)                 | fast  |
+| 0x0800C000 | 3-7     | 464K  | app code + data (`flash2`)                | fast  |
+| 0x0807FFF0 | 7       | 8B    | CRC flag + CRC (end of app image)         | fast  |
+| 0x08080000 | 8-10    | 384K  | new firmware staging (shared with LispBM const s8, QML s9, LispBM code s10, as on the STM32) | slow |
+| 0x080E0000 | 11      | 128K  | bootloader (GD32_1M build, or stock)      | slow  |
+
+Why this layout instead of a GD32 specific one:
+
+* The application image (s0-s7) is exactly the 512 KB code area, so all
+  firmware code runs without wait states and no slow-area placement or
+  `GD32_FAST_FUNC` is needed (`.text` ends at 0x08078760, CRC at
+  0x0807FFF0; `gd32_isr_check.py` reports 0 slow functions).
+* The data area is 512 KB, the same size as STM32 s8-s11, so there is no
+  extra space a different layout could use for the image anyway.
+* VESC Tool firmware upload (staging s8-s10, max 393208 bytes compressed)
+  and bootloader upload (written to staging + 384 KB = 0x080E0000) work
+  unchanged.
+* Size: `fw_60_gd32_1m` uses 446624 of 475120 bytes in `flash2` (94.0 %,
+  STM32 `fw_60`: 446328 bytes), ~28 KB left. Like on the STM32, a larger
+  hwconf/feature set will not fit; use the RKT6 for that.
+
+Differences to the STM32 at runtime: LispBM code, QML and native libraries
+(s8-s10) are read/executed from the slow data area (native-library callbacks
+that run in interrupts are slower than on the STM32).
+
+## Flashing (SWD)
+
+Erase the chip, then write the firmware `.bin` at 0x08000000 and the
+bootloader `.bin` at the address in the table above:
+
+| Variant | Firmware | Bootloader |
+|---|---|---|
+| RKT6 | `60_gd32.bin` -> 0x08000000 (1048568 bytes) | `bootloader_gd32_hw60.bin` -> 0x08100000 |
+| RGT6 | `60_gd32_1m.bin` -> 0x08000000 (524280 bytes) | `bootloader_gd32_1m_hw60.bin` -> 0x080E0000 |
+
+Use a programmer that knows the GD32F405 flash (GigaDevice GD-Link / GD32
+All-In-One Programmer, J-Link with device GD32F405RK / GD32F405RG). OpenOCD's
+`stm32f2x` driver has not been tested with these parts (for the RKT6 it would
+see a 3 MB device with GD32 specific bank1 sector numbers). After that,
+firmware updates work from VESC Tool. Never install a build for another
+variant: an STM32 or RGT6 build on an RKT6 jumps to 0x080E0000, which is
+application code in the 3 MB layout; an RKT6 build on an RGT6 needs flash
+that does not exist.
+
+On the RGT6, VESC Tool's "upload bootloader" writes VESC Tool's own (stock
+STM32) bootloader to 0x080E0000. That is the same layout and should work, but
+it does not have the GD32 clock switch / flash register changes, so prefer the
+`GD32_1M` bootloader via SWD. The firmware itself switches the clock safely
+before it jumps to any bootloader. On the RKT6 the bootloader upload is
+refused by the firmware.
+
+## What goes where (RKT6)
 
 `ld_gd32f405_3m.ld` puts the following into the slow area: terminal,
 confgenerator, BMS, QML UI, Blackmagic SWD programmer, UAVCAN/libcanard, the
@@ -92,7 +171,7 @@ call graph of code inside native libraries is not visible to this check: their
 code runs from the LispBM flash area (bank1, slow) anyway, so ISR callbacks
 registered by native libraries run slower than on the STM32.
 
-## Bootloader / firmware update
+## Bootloader / firmware update (RKT6)
 
 The stock bldc-bootloader (0x080E0000, staging 0x08080000, 384 KB, app sectors
 0-7) does **not** work with this layout. A matching bootloader is required:
@@ -117,7 +196,7 @@ VESC Tool notes:
   A stock STM32 build must never be installed on a GD32 running this layout,
   because it jumps to the bootloader at 0x080E0000.
 
-## Other GD32 workarounds (all guarded by GD32F405_COMPAT)
+## Other GD32 workarounds (GD32F405_COMPAT, both variants unless noted)
 
 * USB OTG FS (`ChibiOS_3.0.5/.../OTGv1/usb_lld.c`): FIFOs are sized before
   they are flushed in `usb_lld_reset()`, and `otg_core_reset()` waits
@@ -136,10 +215,10 @@ VESC Tool notes:
 * ADC inserted (= injected) group, used by BLDC/DC mode (`mcpwm.c`) and set
   up in `hw_60_core.c`: no change needed, see the audit table. All motor
   types stay available.
-* `utils_is_func_valid()` accepts the full 3 MB flash (native libraries are
-  loaded from bank1).
-* UAVCAN firmware update (`libcanard/canard_driver.c`): staging area
-  0x08200000 / 1 MB.
+* RKT6 only (`GD32F405_FLASH_3M`): `utils_is_func_valid()` accepts the full
+  3 MB flash (native libraries are loaded from bank1).
+* RKT6 only (`GD32F405_FLASH_3M`): UAVCAN firmware update
+  (`libcanard/canard_driver.c`) staging area 0x08200000 / 1 MB.
 
 ## Hardware audit (GD32F405 vs. STM32F405, hw_60 pinout)
 

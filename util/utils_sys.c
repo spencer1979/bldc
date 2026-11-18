@@ -153,7 +153,7 @@ bool utils_is_func_valid(void *addr) {
 	bool res = false;
 
 	// Flash
-#ifdef GD32F405_COMPAT
+#ifdef GD32F405_FLASH_3M
 	// GD32F405xK: 3 MB. LispBM code and native libraries live in bank1
 	// (0x08160000 / 0x08180000), see flash_helper.c.
 	if ((uint32_t)addr >= 0x08000000 && (uint32_t)addr <= (0x08000000 + 3 * 1024 * 1024)) {

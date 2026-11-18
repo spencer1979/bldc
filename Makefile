@@ -101,6 +101,7 @@ help:
 	@echo ""
 	@echo "     fw_custom            - Build firmware with custom hwconf file locations, you must specify these by setting the HW_SRC and HW_HEADER variables"
 	@echo "     fw_<board>_gd32      - Boards whose name ends in _gd32 are built for GigaDevice GD32F405xK (3 MB flash layout, see documentation/gd32f405_port.md)"
+	@echo "     fw_<board>_gd32_1m   - Boards whose name ends in _gd32_1m are built for GigaDevice GD32F405RG (1 MB, STM32 flash layout)"
 	@echo "     fw_custom_clean      - Remove firmware for custom"
 	@echo "     fw_custom_flash      - Use OpenOCD + SWD/JTAG to write firmware to custom"
 	@echo ""
@@ -182,7 +183,7 @@ fw_$(1)_vescfw:
 		BUILDDIR="$(2)" \
 		PROJECT="$(3)" \
 		build_args='$$($(1)_BUILD_MACROS)' USE_VERBOSE_COMPILE=no \
-		$(if $(findstring _gd32,$(1)),MCU_GD32F405=1,)
+		$(if $(filter %_gd32_1m,$(1)),MCU_GD32F405_1M=1,$(if $(filter %_gd32,$(1)),MCU_GD32F405=1,))
 
 $(1)_flash: fw_$(1)_flash
 fw_$(1)_flash: fw_$(1)_vescfw fw_$(1)_flash_only

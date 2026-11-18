@@ -64,7 +64,7 @@
 #define CURRENT_CALC_FREQ_HZ							10
 #define PARAM_REFRESH_RATE_HZ                           10
 #define ESC_STATUS_TIMEOUT								500 //ms?
-#ifdef GD32F405_COMPAT
+#ifdef GD32F405_FLASH_3M
 // GD32F405xK layout (flash_helper.c): 1 MB staging area at 0x08200000 and the
 // GD32 .bin is always ~1 MB, so erase the whole staging area.
 #define RESERVED_FLASH_SPACE_SIZE                       (1024 * 1024)
@@ -176,7 +176,7 @@ static bool restart_pending = false;
 #define ADDR_FLASH_SECTOR_10    ((uint32_t)0x080C0000) // Base @ of Sector 10, 128 Kbytes
 #define ADDR_FLASH_SECTOR_11    ((uint32_t)0x080E0000) // Base @ of Sector 11, 128 Kbytes
 
-#ifdef GD32F405_COMPAT
+#ifdef GD32F405_FLASH_3M
 // Staging area of the new firmware (= flash_helper NEW_APP_BASE, sector 24)
 #define NEW_APP_ADDRESS			((uint32_t)0x08200000)
 #else
@@ -1149,7 +1149,7 @@ static void handle_file_read_response(CanardInstance* ins, CanardRxTransfer* tra
 	if (len < UAVCAN_PROTOCOL_FILE_READ_RESPONSE_DATA_MAX_LENGTH) {
 		fw_update.node_id = 0;
 		const uint32_t app_size = (uint32_t)fw_update.ofs-6;
-		#ifdef GD32F405_COMPAT
+		#ifdef GD32F405_FLASH_3M
 		uint16_t app_crc = crc16((uint8_t *)NEW_APP_ADDRESS+6,app_size);
 #else
 		uint16_t app_crc = crc16((uint8_t *)ADDR_FLASH_SECTOR_8+6,app_size);

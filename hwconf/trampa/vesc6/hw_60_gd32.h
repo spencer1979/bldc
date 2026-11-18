@@ -23,7 +23,7 @@
  *
  * Build: make fw_60_gd32
  * The "_gd32" suffix makes the build system select ld_gd32f405_3m.ld and
- * define GD32F405_COMPAT. To make a GD32 variant of another F405 board, copy
+ * define GD32F405_COMPAT and GD32F405_FLASH_3M. To make a GD32 variant of another F405 board, copy
  * this file, include that board's header and change HW_NAME.
  *
  * HW_NAME is changed on purpose so VESC Tool does not offer/auto-install a
@@ -34,8 +34,8 @@
 #ifndef HW_60_GD32_H_
 #define HW_60_GD32_H_
 
-#ifndef GD32F405_COMPAT
-#error "hw_60_gd32.h must be built with GD32F405_COMPAT (use: make fw_60_gd32)"
+#if !defined(GD32F405_COMPAT) || !defined(GD32F405_FLASH_3M)
+#error "hw_60_gd32.h must be built with GD32F405_COMPAT and GD32F405_FLASH_3M (use: make fw_60_gd32)"
 #endif
 
 #define HW60_IS_MK1

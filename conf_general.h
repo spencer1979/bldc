@@ -146,19 +146,28 @@
 #define STM32_UUID_8				((uint8_t*)0x1FFF7A10)
 
 /*
- * GD32F405_COMPAT: only the first 512 KB of flash run without wait states.
- * Functions in objects that the GD32 linker script puts into the slow area,
- * but that can run in interrupt context (e.g. callbacks), are marked with
- * this so that they are linked into the fast area. Empty for STM32 builds.
+ * GigaDevice GD32F405 support (see documentation/gd32f405_port.md):
+ * GD32F405_COMPAT    - all GD32F405 variants (hardware workarounds)
+ * GD32F405_FLASH_3M  - additionally for the 3 MB GD32F405xK flash layout
+ *
+ * GD32_FAST_FUNC: only the first 512 KB of flash run without wait states.
+ * Functions in objects that the 3 MB GD32 linker script puts into the slow
+ * area, but that can run in interrupt context (e.g. callbacks), are marked
+ * with this so that they are linked into the fast area. Empty otherwise (in
+ * the 1 MB / STM32 layout the whole image is in the first 512 KB).
  */
-#ifdef GD32F405_COMPAT
+#ifdef GD32F405_FLASH_3M
 #define GD32_FAST_FUNC(name)		__attribute__((section(".text_fast." #name)))
+#else
+#define GD32_FAST_FUNC(name)
+#endif
+
+#ifdef GD32F405_COMPAT
 #define GD32_ONLY(x)				x
 // motor/gd32_adc.c
 void gd32_adc_set_clock(void);
 void gd32_adc_calibrate_all(void);
 #else
-#define GD32_FAST_FUNC(name)
 #define GD32_ONLY(x)
 #endif
 
