@@ -9,6 +9,12 @@ yet.**
 | STM32F405RGT6 | 1 MB | `fw_60` | `60` | `make build_args='-DHW_VER=60'` | 0x080E0000 |
 | GD32F405RKT6 | 512 KB code area + 2560 KB data area | `fw_60_gd32` | `60_GD32` | `make GD32=1 build_args='-DHW_VER=60'` | 0x08100000 |
 | GD32F405RGT6 | 512 KB code area + 512 KB data area | `fw_60_gd32_1m` | `60_GD32_1M` | `make GD32_1M=1 build_args='-DHW_VER=60'` | 0x080E0000 |
+| GD32F405RKT6, no crystal | as RKT6 | `fw_60_gd32_nohse` | `60_GD32_NOHSE` | same as RKT6 | 0x08100000 |
+| GD32F405RGT6, no crystal | as RGT6 | `fw_60_gd32_1m_nohse` | `60_GD32_1M_NOHSE` | same as RGT6 | 0x080E0000 |
+
+The bootloader never uses the crystal (its `mcuconf.h` runs the PLL from
+HSI/IRC16M, PLLCFGR = 0x07005410, in every build), so the same bootloader
+binaries are used with and without crystal.
 
 Only the code area runs without wait states (DS 3.2: "executing instructions
 without waiting is up to 512K bytes ... A long delay when CPU fetches the
@@ -19,6 +25,8 @@ instructions out of the range").
 ```
 make fw_60_gd32          # VESC 6 (hw_60) pinout on a GD32F405RKT6 (3 MB layout)
 make fw_60_gd32_1m       # VESC 6 (hw_60) pinout on a GD32F405RGT6 (1 MB, STM32 layout)
+make fw_60_gd32_nohse    # GD32F405RKT6 without crystal
+make fw_60_gd32_1m_nohse # GD32F405RGT6 without crystal
 ```
 
 * Board names ending in `_gd32`: the top level `Makefile` passes
@@ -35,6 +43,60 @@ bootloader address, `utils_is_func_valid()`, UAVCAN staging address,
 `fw_60` with a fixed git hash). To add another board: copy
 `hwconf/trampa/vesc6/hw_60_gd32.h` or `hw_60_gd32_1m.h`, include the other
 board's header and change `HW_NAME`.
+
+## Crystal-less builds (`*_nohse`, `GD32F405_NO_HSE`)
+
+For boards without HSE/LSE crystal. Board names ending in `_gd32_nohse` /
+`_gd32_1m_nohse` add `MCU_GD32F405_NOHSE=1` -> `-DGD32F405_NO_HSE` to the
+3 MB / 1 MB GD32 settings above.
+
+* SYSCLK: `hwconf/mcuconf.h` uses the existing `HW_USE_INTERNAL_RC`
+  settings: HSE and LSE disabled (ChibiOS does not wait for HSERDY), PLL from
+  HSI = IRC16M, M=16, N=336, P=2 -> 168 MHz, AHB /1, APB1 /4 = 42 MHz, APB2
+  /2 = 84 MHz (unchanged, so timers, ADC clock (HCLK/5) and the CAN bit
+  timing, which `comm_can.c` computes for a 42 MHz APB1, keep their nominal
+  values). RTC is not used (`HAL_USE_RTC FALSE`, RTCSEL = LSI), the
+  watchdog uses IRC32K, there is no clock security system setup in
+  ChibiOS/VESC.
+* USB: CK48M is switched from PLLQ to IRC48M and the CTC trims IRC48M to
+  the 1 kHz USB SOF (ChibiOS `STM32F4xx/hal_lld.c`, end of
+  `stm32_clock_init()`):
+
+| Register (GD32F4xx UM Rev3.0) | Setting |
+|---|---|
+| RCU_ADDCTL, 0x40023800 + 0xC0 (4.3.26) | IRC48MEN (bit 16) = 1, wait IRC48MSTB (bit 17), CK48MSEL (bit 0) = 1 (IRC48M), PLL48MSEL (bit 1) = 0 |
+| RCU_ADDAPB1EN, 0x40023800 + 0xE4 (4.3.29) | CTCEN (bit 27) = 1 |
+| CTC_CTL1, 0x40006C04 (5.4.2) | 0x2022BB7F: REFSEL[29:28] = 10 (USB SOF), USBSOFSEL (bit 30) = 0 (USBFS), REFPSC = /1, CKLIM = 34, RLVALUE = 47999 (eq. 5-1/5-2 for 48 MHz / 1 kHz) |
+| CTC_CTL0, 0x40006C00 (5.4.1) | AUTOTRIM (bit 6) = 1, CNTEN (bit 5) = 1 |
+
+  UM Rev3.0/Rev2.8 list only GPIO (CTC_SYNC) and LXTAL as CTC references
+  and show REFSEL = 10 and bit 30 as reserved; UM Rev2.5 (5.4.2) documents
+  REFSEL = 10 as USB SOF with USBSOFSEL. The reset value of CTC_CTL1 in all
+  revisions is 0x2022BB7F, i.e. exactly the USB SOF configuration. The other
+  references are not usable here: CTC_SYNC is on PA8 (AF9, used as TIM1
+  CH1) or PD15 (not on LQFP64), LXTAL needs a crystal.
+* Accuracy (DS Rev2.8 Tables 4-18/4-19): IRC16M -1/+1 % at 25 C,
+  -2/+2 % at 0-85 C, -4/+5 % at -40-85 C; IRC48M factory trim -2/+2 %
+  at 25 C, -4/+5 % over temperature, trim step 0.12 %. Effects:
+  * Everything derived from SYSCLK (PWM frequency, control loop timing,
+    ERPM/speed estimation, delays, UART baud rate, CAN bit rate) has the
+    IRC16M error.
+  * CAN: with the VESC bit timing (500 kbit/s: 14 TQ, PS2 = 3, SJW = 4)
+    the allowed oscillator tolerance is min(SJW / (20 x 14),
+    PS2 / (2 x (13 x 14 - PS2))) = 0.84 %, which IRC16M does not
+    guarantee even at 25 C. CAN with crystal based nodes may fail;
+    hardware test needed.
+  * UART: 16x oversampling tolerates roughly 2-3 % combined error, OK at
+    room temperature, marginal at temperature extremes.
+  * USB: IRC48M runs untrimmed (+-2 % at 25 C) until the host sends SOF
+    packets (after reset/enumeration); USB full speed specifies +-0.25 %.
+    Enumeration therefore relies on the untrimmed IRC48M being close
+    enough (same approach as crystal-less USB on other MCUs with a
+    SOF-trimmed 48 MHz RC); the CTC then converges in 0.12 % steps per SOF.
+    If the CTC does not lock on the hardware, setting SOFOEN in USBFS_GCCFG
+    (bit 20) is the next thing to try (UM only describes it as pad output).
+  * Possible improvement: trim IRC16M (RCU_CTL IRC16MADJ, 0.5 % steps)
+    against the SOF-trimmed USB clock while USB is connected.
 
 ## Flash map, GD32F405RKT6 (3 MB, `fw_*_gd32`)
 

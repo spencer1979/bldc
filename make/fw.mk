@@ -143,6 +143,13 @@ ifeq ($(MCU_GD32F405_1M),1)
   USE_OPT += -DGD32F405_COMPAT
 endif
 
+# GD32F405 boards without crystal (HSE/LSE), boards named *_gd32_nohse and
+# *_gd32_1m_nohse: PLL from IRC16M (hwconf/mcuconf.h), USB 48 MHz from
+# IRC48M trimmed by the CTC to the USB SOF (ChibiOS STM32F4xx hal_lld.c).
+ifeq ($(MCU_GD32F405_NOHSE),1)
+  USE_OPT += -DGD32F405_NO_HSE
+endif
+
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(STARTUPSRC) \

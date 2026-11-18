@@ -292,6 +292,43 @@ void stm32_clock_init(void) {
   while ((RCC->CFGR & RCC_CFGR_SWS) != (STM32_SW << 2))
     ;
 #endif
+
+#if defined(GD32F405_COMPAT) && defined(GD32F405_NO_HSE)
+  /* GD32F405 without crystal: the PLL runs from IRC16M (see mcuconf.h), so
+     PLLQ (48 MHz) is only as accurate as IRC16M, which is not good enough for
+     USB. Clock USBFS from IRC48M instead and let the CTC trim IRC48M to the
+     USB SOF packets (1 kHz) from the host. GD32F4xx User Manual:
+     - RCU_ADDCTL (RCU + 0xC0, 4.3.26): IRC48MEN bit 16, IRC48MSTB bit 17,
+       CK48MSEL bit 0 (1 = CK48M from IRC48M).
+     - RCU_ADDAPB1EN (RCU + 0xE4, 4.3.29): CTCEN bit 27.
+     - CTC (0x40006C00, chapter 5): CTC_CTL1 REFSEL[29:28] = 10 selects the
+       USB SOF (documented in UM Rev2.5 with USBSOFSEL bit 30 = 0 for USBFS;
+       UM Rev2.8/3.0 show it as reserved, but keep the CTC_CTL1 reset value
+       0x2022BB7F = REFSEL 10, CKLIM 34, RLVALUE 47999, which is exactly the
+       1 kHz SOF setting of equations 5-1/5-2). CTC_CTL0 CNTEN bit 5,
+       AUTOTRIM bit 6.*/
+  {
+    volatile uint32_t *rcu_addctl    = (volatile uint32_t *)(RCC_BASE + 0xC0U);
+    volatile uint32_t *rcu_addapb1en = (volatile uint32_t *)(RCC_BASE + 0xE4U);
+    volatile uint32_t *ctc_ctl0      = (volatile uint32_t *)0x40006C00U;
+    volatile uint32_t *ctc_ctl1      = (volatile uint32_t *)0x40006C04U;
+
+    *rcu_addctl |= (1U << 16);                  /* IRC48MEN */
+    while ((*rcu_addctl & (1U << 17)) == 0)     /* IRC48MSTB */
+      ;
+    *rcu_addctl = (*rcu_addctl & ~(1U << 1)) | (1U << 0); /* CK48M = IRC48M */
+
+    *rcu_addapb1en |= (1U << 27);               /* CTCEN */
+    (void)*rcu_addapb1en;
+    *ctc_ctl0 &= ~(1U << 5);                    /* CNTEN off to write CTL1 */
+    *ctc_ctl1 = (2U << 28) |                    /* REFSEL = USB SOF */
+                (0U << 30) |                    /* USBSOFSEL = USBFS */
+                (0U << 24) |                    /* REFPSC = /1 */
+                (34U << 16) |                   /* CKLIM = 48000 * 0.12% / 2 */
+                47999U;                         /* RLVALUE = 48 MHz / 1 kHz - 1 */
+    *ctc_ctl0 |= (1U << 6) | (1U << 5);         /* AUTOTRIM, CNTEN */
+  }
+#endif
 #endif /* STM32_NO_INIT */
 
   /* SYSCFG clock enabled here because it is a multi-functional unit shared

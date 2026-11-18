@@ -39,8 +39,8 @@
  */
 #define STM32F4xx_MCUCONF
 
-// Internal RC osc
-#ifdef HW_USE_INTERNAL_RC
+// Internal RC osc (GD32F405_NO_HSE: crystal-less GD32F405 builds, *_nohse)
+#if defined(HW_USE_INTERNAL_RC) || defined(GD32F405_NO_HSE)
 	#define STM32_NO_INIT						FALSE
 	#define STM32_HSI_ENABLED					TRUE
 	#define STM32_LSI_ENABLED					TRUE

@@ -36,7 +36,7 @@
 #ifndef HW_60_GD32_1M_H_
 #define HW_60_GD32_1M_H_
 
-#if !defined(GD32F405_COMPAT) || defined(GD32F405_FLASH_3M)
+#if !defined(GD32F405_COMPAT) || defined(GD32F405_FLASH_3M) || defined(GD32F405_NO_HSE)
 #error "hw_60_gd32_1m.h must be built with GD32F405_COMPAT only (use: make fw_60_gd32_1m)"
 #endif
 
