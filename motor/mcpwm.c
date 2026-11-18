@@ -328,7 +328,7 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	ADC_CommonInitStructure.ADC_Prescaler = ADC_Prescaler_Div2;
 	ADC_CommonInitStructure.ADC_DMAAccessMode = ADC_DMAAccessMode_1;
 	ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;
-	ADC_CommonInit(&ADC_CommonInitStructure);
+	ADC_CommonInit(&ADC_CommonInitStructure); GD32_ONLY(gd32_adc_set_clock();) // GD32: ADC clock <= 40 MHz, see gd32_adc.c
 
 	// Channel-specific settings
 	ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
@@ -374,7 +374,7 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 
 	ADC_Cmd(ADC1, ENABLE);
 	ADC_Cmd(ADC2, ENABLE);
-	ADC_Cmd(ADC3, ENABLE);
+	ADC_Cmd(ADC3, ENABLE); GD32_ONLY(gd32_adc_calibrate_all();) // GD32: ADC calibration, see gd32_adc.c
 
 	// Timer8 for ADC sampling
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM8, ENABLE);

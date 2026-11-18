@@ -130,11 +130,12 @@ VESC Tool notes:
 * HSE startup: ChibiOS waits for HSERDY without a timeout (same as STM32).
 * Flash (`hal_lld.c` in both repos): only WSCNT is written to FMC_WS (=
   FLASH_ACR); PRFTEN/ICEN/DCEN are reserved bits on the GD32.
-* ADC (`motor/gd32_adc.c`): ADC clock HCLK/5 = 33.6 MHz instead of 42 MHz
-  (max 40 MHz) and ADC calibration after power on.
-* Motor type: only FOC (the GD32 ADC has no injected group, which BLDC/DC
-  mode needs). `mc_interface.c` forces `MOTOR_TYPE_FOC`, `hw_60_core.c` skips
-  the injected channel setup.
+* ADC (`motor/gd32_adc.c`, called from `mcpwm_foc_init()` and
+  `mcpwm_init()`): ADC clock HCLK/5 = 33.6 MHz instead of 42 MHz (max 40 MHz)
+  and ADC calibration after power on.
+* ADC inserted (= injected) group, used by BLDC/DC mode (`mcpwm.c`) and set
+  up in `hw_60_core.c`: no change needed, see the audit table. All motor
+  types stay available.
 * `utils_is_func_valid()` accepts the full 3 MB flash (native libraries are
   loaded from bank1).
 * UAVCAN firmware update (`libcanard/canard_driver.c`): staging area
@@ -142,9 +143,10 @@ VESC Tool notes:
 
 ## Hardware audit (GD32F405 vs. STM32F405, hw_60 pinout)
 
-References: GD32F405xx datasheet Rev2.8 (DS), GD32F4xx user manual Rev3.0
-and Rev2.8 (UM), GD32F4xx/STM32F4xx migration guide (MIG), ChibiOS forum
-topics 5940 and 6008. Status: OK = same behaviour, Handled = different and
+References: GD32F405xx datasheet Rev2.8 (DS), GD32F4xx user manual Rev3.0,
+Rev2.8 and Rev2.5 (UM), GD32F45x/F40x device limitations (errata) Rev1.4,
+GD32F4xx/STM32F4xx migration guide (MIG), ChibiOS forum topics 5940 and
+6008. Status: OK = same behaviour, Handled = different and
 handled in code, Fixed = problem found in this audit and fixed, HW = needs
 confirmation on hardware.
 
@@ -158,16 +160,18 @@ confirmation on hardware.
 | PLL 8 MHz HSE, M8 N336 P2 Q7 -> 168 MHz, USB 48 MHz | OK | within PLL limits (UM 4.3), fHCLK max 168 MHz (DS) |
 | APB1 /4, APB2 /2, timer clocks | OK | TIMERSEL=0 gives the same x2 timer clocks (UM RCU_CFG1) |
 | Voltage regulator / over-drive | OK | LDOVS high mode, high-drive not needed at 168 MHz |
-| PLL -> HSI switch (bootloader jump, reset) | Handled | AHB /4 + delay (MIG 5.2) |
+| PLL -> HSI switch (bootloader jump, reset) | Handled | AHB /4 + delay (MIG 5.2, errata sheet GD32F45x/F40x Rev1.4 2.1.1: switch from > 120 MHz) |
 | FLASH_ACR PRFTEN/ICEN/DCEN | Fixed | reserved bits in FMC_WS (UM 2.4.1), only WSCNT written |
 | Flash sectors, SN encoding s12-s27 | OK | UM 2.4.5 FMC_CTL SN |
 | EEPROM emulation / write-then-read in code area | HW | read-after-write coherency of the zero wait area not documented |
 | TIM1 PWM, dead time, break (CCHP = BDTR) | OK | UM TIMERx_CCHP |
 | TIM2 slave reset from TIM1 TRGO (ITI0), TIM8 TRGO = ITI1 | OK | UM TIMER1 trigger selection table |
 | ADC regular trigger T2_CC2 / T8_CC1 encodings | OK | UM Table 14-4 |
-| ADC clock 42 MHz | Fixed | max 40 MHz (DS Table 4-29, UM 14.4.2), now HCLK/5 = 33.6 MHz; one triple sequence 4.0 us instead of 3.2 us |
-| ADC calibration | Fixed | UM 14.4.1, done in `gd32_adc_calibrate_all()` |
-| ADC injected group (BLDC/DC mode) | Fixed | not present on GD32F4 (UM 14.7: ADC_CTL1 bits 23:12 reserved, no ISQ/IDATA), FOC only |
+| ADC clock 42 MHz | Fixed | fADC max 40 MHz (DS Table 4-29, UM 14.4.2), now ADCCK = 100 = HCLK/5 = 33.6 MHz (ADC_SYNCCTL 18:16, UM 14.7.14); one 5-conversion sequence (15 + 12 cycles) 4.0 us instead of 3.2 us, also in BLDC mode |
+| Timer errata (Rev1.4 2.8.1 preload only on counter rising edge, 2.8.2 one-pulse count error) | HW | 2.8.2 not used by hw_60 (one-pulse only in some other hwconfs); effect of 2.8.1 on center-aligned TIM1 PWM unknown |
+| ADC calibration | Fixed | UM 14.4.1 (Rev3.0 and Rev2.5): ADCON=1, wait 14 ADC clocks, RSTCLB (optional), CLB=1, wait CLB=0; CLB/RSTCLB = ADC_CTL1 bits 2/3; tCAL 3.275 us @ 40 MHz, tSU max 1 us (DS Table 4-29). Done in `gd32_adc_calibrate_all()` (10 us wait first) |
+| ADC clock vs. APB2 (errata 2.5.3: data error if ADC clock <= APB clock / 4) | OK | 33.6 MHz vs. APB2 84 MHz |
+| ADC inserted (= injected) group (BLDC/DC mode, `mcpwm.c`) | OK, HW | register compatible according to UM Rev1.2-Rev2.5: ADC_IOFFx 0x14-0x20 = JOFRx, ADC_ISQ 0x38 (IL 21:20, ISQ0-3 filled from ISQ3 like JSQR) = JSQR, ADC_IDATAx 0x3C-0x48 = JDRx, ADC_CTL1 SWICST bit 22 / ETMIC 21:20 / ETSIC 19:16 = JSWSTART/JEXTEN/JEXTSEL, ADC_STAT EOIC bit 2 / STIC bit 3, ADC_CTL0 EOICIE bit 7 / ICA bit 10 / DISIC bit 12 (UM Rev2.5 14.7.1-14.7.13). Inserted trigger table (UM Rev2.5 Table 14-5) matches JEXTSEL 1:1: 0000 TIMER0_CH3 (= T1_CC4), 0001 TIMER0_TRGO, 1100 TIMER7_CH1 (= T8_CC2), 1101 TIMER7_CH2 (= T8_CC3), 1110 TIMER7_CH3, 1111 EXTI15. The GD32 SPL (gd32f4xx_adc.h V2.1.0) defines the same registers. UM Rev2.8/Rev3.0 no longer describe the inserted group (ADC_CTL1 bits 23:12 shown as reserved), the revision history and the errata sheet (GD32F45x/F40x limitations Rev1.4) give no reason; BLDC/DC mode therefore needs a hardware test. An earlier version of this port wrongly forced FOC only. |
 | ADC triple regular simultaneous + DMA mode 1, sampling time encoding, Vrefint ch17, TSVREN | OK | UM 14.5, 14.7.14 |
 | ADC SWRCST edge (MIG 5.4), 8-bit alignment | OK | not used |
 | DMA mappings (ADC1 DMA2 S4 C0, SPI1, SPI3, I2C2) | OK | UM Tables 10-2/10-3 |

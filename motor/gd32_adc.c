@@ -18,7 +18,8 @@
 	*/
 
 /*
- * GD32F405 ADC differences, used by mcpwm_foc_init() (GD32F405_COMPAT only).
+ * GD32F405 ADC differences, used by mcpwm_foc_init() and mcpwm_init()
+ * (GD32F405_COMPAT only).
  * References: GD32F4xx User Manual Rev3.0 chapter 14, GD32F405 datasheet
  * Rev2.8 table 4-29.
  *
@@ -33,7 +34,7 @@
  *   The STM32 code never does this.
  *
  * These functions are only built for GD32F405_COMPAT. They live in their
- * own file so that mcpwm_foc.c keeps its line numbers (the FOC profiling
+ * own file so that mcpwm_foc.c/mcpwm.c keep their line numbers (the FOC profiling
  * macros record __LINE__) and the STM32 binaries stay identical.
  */
 
