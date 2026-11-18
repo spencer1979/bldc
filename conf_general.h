@@ -146,6 +146,23 @@
 #define STM32_UUID_8				((uint8_t*)0x1FFF7A10)
 
 /*
+ * GD32F405_COMPAT: only the first 512 KB of flash run without wait states.
+ * Functions in objects that the GD32 linker script puts into the slow area,
+ * but that can run in interrupt context (e.g. callbacks), are marked with
+ * this so that they are linked into the fast area. Empty for STM32 builds.
+ */
+#ifdef GD32F405_COMPAT
+#define GD32_FAST_FUNC(name)		__attribute__((section(".text_fast." #name)))
+#define GD32_ONLY(x)				x
+// motor/gd32_adc.c
+void gd32_adc_set_clock(void);
+void gd32_adc_calibrate_all(void);
+#else
+#define GD32_FAST_FUNC(name)
+#define GD32_ONLY(x)
+#endif
+
+/*
  *	Run the BLDC speed controller in current mode instead of duty cycle mode. This will
  *	make it behave like the FOC speed controller. The duty cycle mode has the advantage
  *	that it does not require the extra current controller since bldc inherently runs

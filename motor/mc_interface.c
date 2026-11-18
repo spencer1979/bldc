@@ -244,6 +244,16 @@ void mc_interface_init(bool reset_conf) {
 
 	encoder_init(&motor_now()->m_conf);
 
+#ifdef GD32F405_COMPAT
+	// The GD32F405 ADC has no inserted (injected) sequence, which the BLDC/DC
+	// implementation (mcpwm.c) needs for current sampling. Only FOC is
+	// supported.
+	m_motor_1.m_conf.motor_type = MOTOR_TYPE_FOC;
+#ifdef HW_HAS_DUAL_MOTORS
+	m_motor_2.m_conf.motor_type = MOTOR_TYPE_FOC;
+#endif
+#endif
+
 	// Initialize selected implementation
 	switch (motor_now()->m_conf.motor_type) {
 	case MOTOR_TYPE_BLDC:
@@ -331,7 +341,8 @@ const volatile mc_configuration* mc_interface_get_configuration(void) {
 void mc_interface_set_configuration(mc_configuration *configuration) {
 	volatile motor_if_state_t *motor = motor_now();
 
-#if defined HW_HAS_DUAL_PARALLEL
+#if defined HW_HAS_DUAL_PARALLEL || defined GD32F405_COMPAT
+	// GD32F405_COMPAT: only FOC, see mc_interface_init
 	configuration->motor_type = MOTOR_TYPE_FOC;
 #else
 #ifdef HW_HAS_DUAL_MOTORS

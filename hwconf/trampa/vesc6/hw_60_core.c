@@ -201,6 +201,7 @@ void hw_setup_adc_channels(void) {
 //		ADC_RegularChannelConfig(ADC3, ADC_Channel_12, i, ADC_SampleTime_56Cycles);
 //	}
 
+#ifndef GD32F405_COMPAT
 	// Injected channels
 	ADC_InjectedChannelConfig(ADC1, ADC_Channel_10, 1, t_samp);
 	ADC_InjectedChannelConfig(ADC2, ADC_Channel_11, 1, t_samp);
@@ -211,6 +212,12 @@ void hw_setup_adc_channels(void) {
 	ADC_InjectedChannelConfig(ADC1, ADC_Channel_10, 3, t_samp);
 	ADC_InjectedChannelConfig(ADC2, ADC_Channel_11, 3, t_samp);
 	ADC_InjectedChannelConfig(ADC3, ADC_Channel_12, 3, t_samp);
+#else
+	// GD32F405: the ADC has no inserted (injected) sequence, ADC_ISQ (0x38)
+	// is reserved (GD32F4xx User Manual Rev3.0 14.7 register map). Injected
+	// channels are only used by the BLDC/DC implementation (mcpwm.c), which
+	// is disabled on GD32 (see mc_interface.c), FOC uses the regular group.
+#endif
 }
 
 void hw_start_i2c(void) {

@@ -272,6 +272,15 @@ void stm32_clock_init(void) {
   else
     FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN |
                  FLASH_ACR_DCEN | STM32_FLASHBITS;
+#elif defined(GD32F405_COMPAT)
+  /* GD32F4xx: FMC_WS (same address as FLASH_ACR) only has WSCNT[3:0];
+     bits 31:4 are reserved and must be kept at reset value (GD32F4xx User
+     Manual Rev3.0, 2.4.1). There is no ART prefetch/I-cache/D-cache, so
+     PRFTEN/ICEN/DCEN are not written. WSCNT only takes effect when WSEN in
+     FMC_WSEN is set (2.4.10, reset value 0 = no wait states added), so the
+     value written here is inactive; outside the zero wait state area the
+     flash controller adds its own delay (2.2).*/
+  FLASH->ACR = STM32_FLASHBITS;
 #else
   FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN |
                FLASH_ACR_DCEN | STM32_FLASHBITS;

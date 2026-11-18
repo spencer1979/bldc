@@ -5367,6 +5367,7 @@ static uint32_t map_hall_pin[6] = {
 #endif
 };
 
+GD32_FAST_FUNC(read_hall_lbm)
 static int read_hall_lbm(bool is_second_motor, int samples) {
 	samples = 1 + 2 * samples;
 
@@ -5959,12 +5960,14 @@ static THD_FUNCTION(event_thread, arg) {
 	}
 }
 
+GD32_FAST_FUNC(icuwidthcb)
 static void icuwidthcb(ICUDriver *icup) {
 	icu_last_width = icuGetWidthX(icup);
 	icu_last_period = icuGetPeriodX(icup);
 	icu_width_done = true;
 }
 
+GD32_FAST_FUNC(icuperiodcb)
 static void icuperiodcb(ICUDriver *icup) {
 	icu_last_width = icuGetWidthX(icup);
 	icu_last_period = icuGetPeriodX(icup);

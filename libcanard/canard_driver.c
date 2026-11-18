@@ -64,7 +64,13 @@
 #define CURRENT_CALC_FREQ_HZ							10
 #define PARAM_REFRESH_RATE_HZ                           10
 #define ESC_STATUS_TIMEOUT								500 //ms?
+#ifdef GD32F405_COMPAT
+// GD32F405xK layout (flash_helper.c): 1 MB staging area at 0x08200000 and the
+// GD32 .bin is always ~1 MB, so erase the whole staging area.
+#define RESERVED_FLASH_SPACE_SIZE                       (1024 * 1024)
+#else
 #define RESERVED_FLASH_SPACE_SIZE                       393216
+#endif
 
 /*
  * Node status variables
@@ -169,6 +175,13 @@ static bool restart_pending = false;
 #define ADDR_FLASH_SECTOR_9     ((uint32_t)0x080A0000) // Base @ of Sector 9, 128 Kbytes
 #define ADDR_FLASH_SECTOR_10    ((uint32_t)0x080C0000) // Base @ of Sector 10, 128 Kbytes
 #define ADDR_FLASH_SECTOR_11    ((uint32_t)0x080E0000) // Base @ of Sector 11, 128 Kbytes
+
+#ifdef GD32F405_COMPAT
+// Staging area of the new firmware (= flash_helper NEW_APP_BASE, sector 24)
+#define NEW_APP_ADDRESS			((uint32_t)0x08200000)
+#else
+#define NEW_APP_ADDRESS			flash_addr[NEW_APP_BASE]
+#endif
 
 static const uint32_t flash_addr[FLASH_SECTORS] = {
 	ADDR_FLASH_SECTOR_0,
@@ -1136,7 +1149,11 @@ static void handle_file_read_response(CanardInstance* ins, CanardRxTransfer* tra
 	if (len < UAVCAN_PROTOCOL_FILE_READ_RESPONSE_DATA_MAX_LENGTH) {
 		fw_update.node_id = 0;
 		const uint32_t app_size = (uint32_t)fw_update.ofs-6;
+		#ifdef GD32F405_COMPAT
+		uint16_t app_crc = crc16((uint8_t *)NEW_APP_ADDRESS+6,app_size);
+#else
 		uint16_t app_crc = crc16((uint8_t *)ADDR_FLASH_SECTOR_8+6,app_size);
+#endif
 		uint8_t sizecrc[6];
 		int32_t ind = 0;
 
@@ -1147,12 +1164,12 @@ static void handle_file_read_response(CanardInstance* ins, CanardRxTransfer* tra
 		// This is debug stuff used to valiate the file transfer.
 		if (debug_level == 8) {
 			commands_printf("UAVCAN read_response transfer finished %d kB", fw_update.ofs / 1024U);
-			commands_printf("new app address: 0x%lx", flash_addr[NEW_APP_BASE]);
+			commands_printf("new app address: 0x%lx", NEW_APP_ADDRESS);
 			
 			// Print reserved space contents for size and crc
-			sizefromflash = buffer_get_uint32((uint8_t *)flash_addr[NEW_APP_BASE], &ind);
-			crc_app = buffer_get_uint16((uint8_t *)flash_addr[NEW_APP_BASE], &ind);
-			nextData = buffer_get_uint32((uint8_t *)flash_addr[NEW_APP_BASE], &ind);
+			sizefromflash = buffer_get_uint32((uint8_t *)NEW_APP_ADDRESS, &ind);
+			crc_app = buffer_get_uint16((uint8_t *)NEW_APP_ADDRESS, &ind);
+			nextData = buffer_get_uint32((uint8_t *)NEW_APP_ADDRESS, &ind);
 			commands_printf("orig size from flash: 0x%lx", (long)sizefromflash);
 			commands_printf("orig crc from flash: 0x%02hhX", crc_app);
 			commands_printf("orig nextData: 0x%08lx", (long)nextData);
@@ -1176,11 +1193,11 @@ static void handle_file_read_response(CanardInstance* ins, CanardRxTransfer* tra
 			
 			// Print size and crc data read from flash after calculation and write
 			ind = 0;
-			sizefromflash = buffer_get_uint32((uint8_t *)flash_addr[NEW_APP_BASE], &ind);
-			crc_app = buffer_get_uint16((uint8_t *)flash_addr[NEW_APP_BASE], &ind);
+			sizefromflash = buffer_get_uint32((uint8_t *)NEW_APP_ADDRESS, &ind);
+			crc_app = buffer_get_uint16((uint8_t *)NEW_APP_ADDRESS, &ind);
 			commands_printf("size from flash: 0x%lx", (long)sizefromflash);
 			commands_printf("crc from flash: 0x%02hhX", crc_app);
-			nextData = buffer_get_uint32((uint8_t *)flash_addr[NEW_APP_BASE], &ind);
+			nextData = buffer_get_uint32((uint8_t *)NEW_APP_ADDRESS, &ind);
 			commands_printf("nextData: 0x%lx", (long)nextData);
 			ind = 0;
 			uint32_t appstartdata = buffer_get_uint32((uint8_t *)flash_addr[APP_BASE], &ind);

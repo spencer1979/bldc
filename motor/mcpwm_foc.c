@@ -448,7 +448,7 @@ void mcpwm_foc_init(mc_configuration *conf_m1, mc_configuration *conf_m2) {
 	ADC_CommonInitStructure.ADC_Prescaler = ADC_Prescaler_Div2;
 	ADC_CommonInitStructure.ADC_DMAAccessMode = ADC_DMAAccessMode_1;
 	ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;
-	ADC_CommonInit(&ADC_CommonInitStructure);
+	ADC_CommonInit(&ADC_CommonInitStructure); GD32_ONLY(gd32_adc_set_clock();) // GD32: ADC clock <= 40 MHz, see gd32_adc.c
 
 	ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
 	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
@@ -471,7 +471,7 @@ void mcpwm_foc_init(mc_configuration *conf_m1, mc_configuration *conf_m2) {
 
 	ADC_Cmd(ADC1, ENABLE);
 	ADC_Cmd(ADC2, ENABLE);
-	ADC_Cmd(ADC3, ENABLE);
+	ADC_Cmd(ADC3, ENABLE); GD32_ONLY(gd32_adc_calibrate_all();) // GD32: ADC calibration, see gd32_adc.c
 
 	timer_reinit((int)m_motor_1.m_conf->foc_f_zv);
 

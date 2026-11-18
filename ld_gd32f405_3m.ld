@@ -195,7 +195,9 @@ SECTIONS
         /* LispBM VESC glue, extension libraries, reader/printer, image */
         */obj/lispif.o(.text .text.* .rodata .rodata.*)
         */obj/lispif_vesc_extensions.o(.text .text.* .rodata .rodata.*)
-        */obj/lispif_c_lib.o(.text .text.* .rodata .rodata.*)
+        /* lispif_c_lib.o stays fast: native libraries call its VESC_IF wrappers
+           (lib_io_read, lib_set_pad, ...) from pwm/encoder callbacks that run
+           in the FOC interrupt. */
         */obj/lbm_vesc_utils.o(.text .text.* .rodata .rodata.*)
         */obj/array_extensions.o(.text .text.* .rodata .rodata.*)
         */obj/math_extensions.o(.text .text.* .rodata .rodata.*)
@@ -230,6 +232,8 @@ SECTIONS
 
     .text : ALIGN(16)
     {
+        /* GD32_FAST_FUNC() functions from objects that are otherwise slow */
+        *(.text_fast .text_fast.*)
         *(.text)
         *(.text.*)
         *(.rodata)
